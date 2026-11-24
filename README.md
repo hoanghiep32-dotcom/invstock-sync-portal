@@ -112,3 +112,4 @@ Cả hai Function đang bật `verify_jwt = true`.
 - Portal không tự publish research; publication vẫn là bước riêng cần chỉ thị riêng.
 - `SYNCED` chỉ được hiển thị khi Edge Function xác minh được research version / approval receipt hoặc screening run / candidate count.
 - Trạng thái triển khai hiện tại: backend Supabase đã deploy; frontend source đã đóng gói. Cần bạn thực hiện bước deploy frontend lên Vercel/Netlify và cập nhật Auth Redirect URL vì phiên này không có quyền truy cập tài khoản hosting của bạn.
+Deployment trigger – sync latest source
