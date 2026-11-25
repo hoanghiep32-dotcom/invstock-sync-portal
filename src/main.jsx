@@ -36,6 +36,15 @@ async function sha256(value) {
 }
 
 function App() {
+  const [lastReading] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('invstock_last_reading_v1') || 'null')
+      const path = typeof saved?.path === 'string' ? saved.path : ''
+      return path.startsWith('/research/') || path.startsWith('/screening/') ? saved : null
+    } catch {
+      return null
+    }
+  })
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
 
@@ -498,6 +507,15 @@ function App() {
             Full Research & Screening · Mở trực tiếp, chỉ xác thực khi đồng bộ
           </p>
         </div>
+
+        <nav className="admin-navigation" aria-label="Điều hướng">
+          <a className="button secondary" href={lastReading?.path || '/'}>
+            ← {lastReading ? 'Quay lại bài đang đọc' : 'Mở Research Library'}
+          </a>
+          <a className="button subtle" href="/">
+            Thư viện Research
+          </a>
+        </nav>
 
         {session && (
           <div className="account">
