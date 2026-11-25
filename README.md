@@ -29,3 +29,4 @@ Chỉ dùng publishable key ở frontend. Không bao giờ đưa service role / 
 ## Mã nguồn backend
 `supabase/functions/` chứa mã các Edge Function (bản đã deploy), `supabase/migrations/` chứa migration Giai đoạn 1.
 `_shared/validator.js` là bản chuyển từ `validate.py`; khi sửa framework phải sửa cả hai và chạy lại các file mẫu.
+Các file schema trong `_shared/` là bản thu gọn của 02/07 (gộp các phần lặp lại thành `$defs`, kết quả kiểm tra giống hệt bản gốc trên các file mẫu và FPT/VIX R2).

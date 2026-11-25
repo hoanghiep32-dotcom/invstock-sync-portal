@@ -67,7 +67,7 @@ async function prepare(db: any, body: any) {
     if (!p) blockers.push("parent_not_in_library");
     else {
       if (p.revision !== cols.revision - 1) blockers.push("parent_revision_mismatch");
-      if (p.record_type !== cols.record_type || p.ticker !== (cols as any).ticker || p.exchange !== (cols as any).exchange) blockers.push("parent_lineage_mismatch");
+      if (p.record_type !== cols.record_type || p.ticker !== ((cols as any).ticker ?? null) || p.exchange !== ((cols as any).exchange ?? null)) blockers.push("parent_lineage_mismatch");
       const { data: child } = await db.from("lib_records").select("record_id").eq("parent_id", cols.parent_id).maybeSingle();
       if (child) blockers.push("parent_already_has_child");
     }
