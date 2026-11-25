@@ -306,8 +306,20 @@ function App() {
         if (!Array.isArray(parsed.sources) || parsed.sources.length === 0) {
           throw new Error('Full Research phải có ít nhất 1 nguồn trong sources[].')
         }
-        if (!Array.isArray(parsed.scorecard?.criteria) || parsed.scorecard.criteria.length !== 15) {
+        const expectedCriteria = [
+          'business_quality', 'growth', 'profitability', 'financial_strength',
+          'cash_flow', 'management', 'valuation', 'catalysts', 'risk',
+          'industry', 'technical', 'ownership', 'transparency',
+          'capital_allocation', 'portfolio_fit'
+        ]
+        if (!Array.isArray(parsed.scorecard?.criteria) || parsed.scorecard.criteria.length !== expectedCriteria.length) {
           throw new Error('Scorecard phải có đủ 15 tiêu chí theo framework invstock_15_v1.')
+        }
+        const suppliedKeys = parsed.scorecard.criteria.map(item => item?.criterion_key).sort()
+        const expectedKeys = [...expectedCriteria].sort()
+        if (new Set(suppliedKeys).size !== expectedCriteria.length ||
+            expectedKeys.some((key, index) => key !== suppliedKeys[index])) {
+          throw new Error('Scorecard phải có đúng 15 criterion_key của framework invstock_15_v1, không thiếu, không trùng và không dùng key lạ.')
         }
         const invalidCriteria = parsed.scorecard.criteria.filter(item => {
           const score = item?.raw_score ?? item?.raw_score_0_10
