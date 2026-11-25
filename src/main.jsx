@@ -272,73 +272,78 @@ function App() {
     try {
       const parsed = JSON.parse(raw)
 
-      if (
-        !parsed ||
-        typeof parsed !== 'object' ||
-        Array.isArray(parsed)
-      ) {
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new Error('Payload phải là một JSON object.')
       }
 
       if (mode === 'research') {
+        const requiredSections = [
+          'metadata', 'company_profile', 'executive_summary', 'investment_thesis',
+          'financial_analysis', 'valuation', 'scorecard', 'technical_analysis',
+          'ownership_and_flows', 'catalysts', 'risks', 'investment_decision',
+          'sources', 'data_quality'
+        ]
+        const missing = requiredSections.filter(key =>
+          !Object.prototype.hasOwnProperty.call(parsed, key)
+        )
+        const wrongTypes = requiredSections.filter(key => {
+          if (!Object.prototype.hasOwnProperty.call(parsed, key)) return false
+          return ['catalysts', 'risks', 'sources'].includes(key)
+            ? !Array.isArray(parsed[key])
+            : (!parsed[key] || typeof parsed[key] !== 'object' || Array.isArray(parsed[key]))
+        })
+
         if (!parsed.metadata?.ticker) {
-          throw new Error(
-            'Thiếu metadata.ticker trong Full Research JSON.'
-          )
+          throw new Error('Thiếu metadata.ticker trong Full Research JSON.')
+        }
+        if (missing.length || wrongTypes.length) {
+          const details = [
+            missing.length ? `Thiếu section bắt buộc: ${missing.join(', ')}.` : '',
+            wrongTypes.length ? `Sai kiểu dữ liệu section: ${wrongTypes.join(', ')}.` : ''
+          ].filter(Boolean).join(' ')
+          throw new Error(`Full Research chưa đủ chuẩn invstock_research_v1. ${details} Chưa tạo Preview/Approval và không thể Sync.`)
+        }
+        if (!Array.isArray(parsed.sources) || parsed.sources.length === 0) {
+          throw new Error('Full Research phải có ít nhất 1 nguồn trong sources[].')
+        }
+        if (!Array.isArray(parsed.scorecard?.criteria) || parsed.scorecard.criteria.length !== 15) {
+          throw new Error('Scorecard phải có đủ 15 tiêu chí theo framework invstock_15_v1.')
+        }
+        const invalidCriteria = parsed.scorecard.criteria.filter(item => {
+          const score = item?.raw_score ?? item?.raw_score_0_10
+          return !item?.criterion_key || score === undefined || score === null ||
+            score === '' || !Number.isFinite(Number(score)) ||
+            Number(score) < 0 || Number(score) > 10
+        })
+        if (invalidCriteria.length) {
+          throw new Error(`Có ${invalidCriteria.length} tiêu chí Scorecard thiếu criterion_key hoặc điểm hợp lệ 0–10.`)
         }
       } else {
-        if (
-          !Array.isArray(parsed.candidates) ||
-          parsed.candidates.length === 0
-        ) {
-          throw new Error(
-            'Screening Snapshot phải có mảng candidates không rỗng.'
-          )
+        if (!Array.isArray(parsed.candidates) || parsed.candidates.length === 0) {
+          throw new Error('Screening Snapshot phải có mảng candidates không rỗng.')
         }
-
         const seen = new Set()
-
         for (const item of parsed.candidates) {
-          const ticker = String(item?.ticker || '')
-            .trim()
-            .toUpperCase()
-
-          if (!ticker) {
-            throw new Error(
-              'Mỗi candidate phải có ticker.'
-            )
-          }
-
-          if (seen.has(ticker)) {
-            throw new Error(
-              `Ticker ${ticker} bị trùng trong candidates.`
-            )
-          }
-
+          const ticker = String(item?.ticker || '').trim().toUpperCase()
+          if (!ticker) throw new Error('Mỗi candidate phải có ticker.')
+          if (seen.has(ticker)) throw new Error(`Ticker ${ticker} bị trùng trong candidates.`)
           seen.add(ticker)
         }
       }
 
       const serialized = JSON.stringify(parsed)
-
-      if (
-        new TextEncoder().encode(serialized).length >
-        2_000_000
-      ) {
+      if (new TextEncoder().encode(serialized).length > 2_000_000) {
         throw new Error('Payload vượt quá giới hạn 2 MB.')
       }
 
       const hash = await sha256(serialized)
-
       setPayload(parsed)
       setPayloadHash(hash)
-
-      setMessage(
-        'Payload đã được parse và tạo hash. Hãy kiểm tra nội dung trước khi chấp thuận.'
-      )
+      setMessage('Payload đã vượt qua kiểm tra cấu trúc sơ bộ và tạo hash. Hãy kiểm tra nội dung trước khi chấp thuận.')
     } catch (err) {
       setPayload(null)
       setPayloadHash('')
+      setConsent(false)
       setError(err.message || 'JSON không hợp lệ.')
     }
   }
