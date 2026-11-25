@@ -59,3 +59,11 @@ pre{max-height:420px;overflow:auto;background:#08111e;border:1px solid #26374f;p
 .danger{color:#ffb5bd}
 footer{color:#6f829d;text-align:center;font-size:11px;margin-top:34px}
 @media(max-width:650px){.shell{padding:25px 14px}.topbar{display:block}h1{font-size:32px}.account{margin-top:16px}.panel{padding:18px}.summary-grid{grid-template-columns:1fr}.result-grid{grid-template-columns:1fr;gap:3px}.result-grid dd{margin-bottom:9px}}
+
+/* Admin navigation: easy return to the public research library */
+.admin-navigation{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-left:auto}
+.admin-navigation a{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap}
+.admin-navigation a:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.admin-navigation .secondary{background:#e8f1fc;color:#214e7b;border:1px solid #c4d8ef}
+.admin-navigation .subtle{background:#f1f5f9;color:#475569;border:1px solid #d9e2ec}
+@media(max-width:650px){.admin-navigation{justify-content:flex-start;margin:16px 0 0}.topbar{display:flex;flex-direction:column}.account{margin-top:12px}}
