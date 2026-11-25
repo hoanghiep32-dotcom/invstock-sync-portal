@@ -23,3 +23,46 @@
 .lib-object{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.lib-field{min-width:0;padding:13px;background:#111f31;border:1px solid #293d57;border-radius:9px}.lib-field-label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#819ab8;margin-bottom:7px}.lib-field-value{font-size:12px;line-height:1.65;color:#d3dfed;overflow-wrap:anywhere}.lib-value-text{white-space:pre-wrap}.lib-array{display:flex;flex-direction:column;gap:8px}.lib-array-item{padding:10px;background:#111f31;border:1px solid #293d57;border-radius:8px;font-size:12px}.lib-array-item .lib-object{grid-template-columns:1fr}.lib-json{white-space:pre-wrap;overflow-wrap:anywhere;background:#0a1422;padding:12px;border-radius:8px;color:#c7d7e9;font-size:11px}.lib-section{border:1px solid #2b405a;border-radius:10px;padding:13px;margin:9px 0;background:#111f31}.lib-section summary{cursor:pointer;color:#dbe8f8;font-weight:700;font-size:12px}.lib-section-body{padding-top:14px}.lib-source{display:flex;flex-direction:column;gap:5px;padding:12px 0;border-bottom:1px solid #293a51;font-size:11px}.lib-source strong{color:#e0eaf7}.lib-source span{color:#849ab6}.lib-source a,.lib-report-content a{color:#91bff2;overflow-wrap:anywhere}.lib-source p{color:#9aacc2;margin:0}.lib-report-meta{font-size:10px;color:#7e93ad;padding:15px 0}
 .lib-table-wrap{overflow-x:auto;border:1px solid #2c4059;border-radius:10px}.lib-table{width:100%;border-collapse:collapse;font-size:12px;min-width:650px}.lib-table th,.lib-table td{padding:12px 14px;text-align:left;border-bottom:1px solid #293b52}.lib-table th{background:#14253a;color:#9db7d6;font-size:10px;letter-spacing:.08em}.lib-table td{color:#d3dfed}.lib-table td strong{color:#a8cefa}
 @media(max-width:760px){.lib-shell{padding:20px 15px 35px}.lib-header{grid-template-columns:1fr}.lib-header nav{grid-row:2;flex-wrap:wrap}.lib-header>p{grid-row:3}.lib-hero{padding:48px 0 35px}.lib-cards{grid-template-columns:1fr}.lib-report-layout{grid-template-columns:1fr;gap:20px}.lib-toc{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.lib-toc strong{grid-column:1/-1}.lib-object{grid-template-columns:1fr}.lib-library-top{align-items:stretch}.lib-search{width:100%}}
+
+/* Light theme: Public Research Library */
+body:has(.lib-shell){background:#ffffff!important;color:#202b3c!important}
+body:has(.lib-shell) #root{background:#ffffff;min-height:100vh}
+.lib-shell{color:#263244;background:#fff}
+.lib-header{border-bottom-color:#e5eaf0}
+.lib-brand{color:#17263b}.lib-brand small{color:#718096}
+.lib-brand-mark{background:linear-gradient(135deg,#dbeafe,#93c5fd);color:#17365d}
+.lib-header nav a,.lib-breadcrumb a,.lib-footer a{color:#2563a6}
+.lib-header>p,.lib-breadcrumb{color:#64748b}
+.lib-hero,.lib-report-hero{border-bottom-color:#e5eaf0}
+.lib-eyebrow{color:#3977b9}
+.lib-hero h1,.lib-report-hero h1{color:#17263b}
+.lib-hero h1 em{color:#397fc4}
+.lib-hero>p,.lib-report-hero>p{color:#596a80}
+.lib-stats>div{background:#f7f9fc;border-color:#e1e8f0}
+.lib-stats strong{color:#17263b}.lib-stats span{color:#687b93}
+.lib-library h2,.lib-report-section h2{color:#1c2c42}
+.lib-search,.lib-shell input.lib-search{background:#fff!important;border:1px solid #cbd5e1!important;color:#243247!important;box-shadow:none}
+.lib-search::placeholder{color:#94a3b8}
+.lib-search:focus,.lib-shell input.lib-search:focus{border-color:#4c8bc9!important;box-shadow:0 0 0 3px #4c8bc91a!important}
+.lib-tabs{border-bottom-color:#e2e8f0}
+.lib-tabs button{color:#64748b}.lib-tabs button.active{color:#1d4f83;border-color:#397fc4}
+.lib-card{background:#fff;border-color:#e1e8f0;color:#263244;box-shadow:0 3px 12px #0f27400a}
+.lib-card:hover{border-color:#9bbce0;box-shadow:0 12px 28px #18365312}
+.lib-ticker{color:#245f9b}.lib-published{color:#18794e;border-color:#a8ddc3;background:#f0fbf5}
+.lib-card h3{color:#1c2c42}.lib-card p{color:#64748b}
+.lib-card-metrics{border-color:#e7edf3;color:#64748b}.lib-card-metrics b{color:#26384e}
+.lib-card footer{color:#718096}.lib-card footer span{color:#2563a6}
+.lib-empty{color:#64748b;border-color:#cbd5e1;background:#fafcff}.lib-error{color:#b42332;border-color:#efb4bb;background:#fff8f8}
+.lib-footer{color:#718096}
+.lib-toc{background:#f8fafc;border-color:#e2e8f0}.lib-toc strong{color:#3e6f9f}.lib-toc a{color:#53657b}.lib-toc a:hover{color:#1d5d9e}
+.lib-report-section{border-bottom-color:#e5eaf0}
+.lib-field{background:#f8fafc;border-color:#e5eaf0}.lib-field-label{color:#64748b}.lib-field-value{color:#29384c}
+.lib-array-item{background:#f8fafc;border-color:#e5eaf0;color:#29384c}
+.lib-json{background:#f3f6fa;border:1px solid #e2e8f0;color:#334155}
+.lib-section{background:#f8fafc;border-color:#e2e8f0}.lib-section summary{color:#24364d}
+.lib-source{border-bottom-color:#e5eaf0}.lib-source strong{color:#24364d}.lib-source span,.lib-source p{color:#64748b}
+.lib-source a,.lib-report-content a{color:#2563a6}
+.lib-report-meta{color:#718096}
+.lib-table-wrap{border-color:#e2e8f0}.lib-table th,.lib-table td{border-bottom-color:#e5eaf0}.lib-table th{background:#f1f5f9;color:#52677f}.lib-table td{color:#334155}.lib-table td strong{color:#245f9b}
+.lib-shell .lib-footer{background:#fff}
+@media(max-width:760px){.lib-header{border-bottom-color:#e5eaf0}}
