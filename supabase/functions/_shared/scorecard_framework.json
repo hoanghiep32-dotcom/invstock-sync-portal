@@ -1,0 +1,269 @@
+{
+  "version": "2.0.0",
+  "scale": "integer 0–10 or null",
+  "criteria": [
+    {
+      "id": "C01",
+      "name": "Mô hình kinh doanh",
+      "weight": 6,
+      "group": "business",
+      "evidence": "Doanh thu lặp lại, tập trung khách hàng, unit economics",
+      "anchors": {
+        "9-10": "Nguồn thu dễ dự báo, đa dạng, unit economics tốt",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Phụ thuộc một nguồn thu, kinh tế đơn vị yếu",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C02",
+      "name": "Lợi thế cạnh tranh",
+      "weight": 7,
+      "group": "business",
+      "evidence": "Thị phần, chi phí, switching cost, ROIC",
+      "anchors": {
+        "9-10": "Lợi thế có bằng chứng và bền vững",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Không có rào cản, mất thị phần",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C03",
+      "name": "Ngành và chu kỳ",
+      "weight": 5,
+      "group": "business",
+      "evidence": "Cung cầu, công suất, chính sách",
+      "anchors": {
+        "9-10": "Cung cầu thuận lợi có dữ liệu",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Dư cung hoặc suy giảm cấu trúc",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C04",
+      "name": "Tăng trưởng bền vững",
+      "weight": 7,
+      "group": "business",
+      "evidence": "Tăng trưởng hữu cơ, tái đầu tư, backlog",
+      "anchors": {
+        "9-10": "Động lực có vốn và khả năng thực hiện",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Tăng trưởng phụ thuộc giả định yếu",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C05",
+      "name": "Sinh lời và hiệu quả vốn",
+      "weight": 7,
+      "group": "financial",
+      "evidence": "ROIC-WACC, ROE, biên lợi nhuận chuẩn hóa",
+      "anchors": {
+        "9-10": "Vượt chi phí vốn bền vững",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Hủy giá trị hoặc sinh lời thấp kéo dài",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C06",
+      "name": "Chất lượng lợi nhuận",
+      "weight": 6,
+      "group": "financial",
+      "evidence": "Khoản bất thường, dồn tích, kiểm toán",
+      "anchors": {
+        "9-10": "Lợi nhuận cốt lõi, đối chiếu tốt",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Lợi nhuận chủ yếu bất thường hoặc sai lệch trọng yếu",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C07",
+      "name": "Dòng tiền",
+      "weight": 7,
+      "group": "financial",
+      "evidence": "CFO/LNST nhiều năm, FCF, chuyển đổi tiền",
+      "anchors": {
+        "9-10": "Tiền thực hỗ trợ lợi nhuận và đầu tư",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Thiếu tiền kéo dài không có giải thích hợp lý",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C08",
+      "name": "Nợ và thanh khoản",
+      "weight": 7,
+      "group": "financial",
+      "evidence": "Lịch đáo hạn, nguồn trả nợ, coverage",
+      "anchors": {
+        "9-10": "Nguồn trả nợ đủ kể cả stress",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Thiếu hụt nguồn trả nợ trọng yếu",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C09",
+      "name": "Vốn lưu động",
+      "weight": 3,
+      "group": "financial",
+      "evidence": "DSO/DIO/DPO, tuổi nợ, dự phòng",
+      "anchors": {
+        "9-10": "Chu kỳ tiền ổn định, tài sản thu hồi tốt",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Phải thu/tồn kho suy giảm chất lượng",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C10",
+      "name": "Quản trị và minh bạch",
+      "weight": 8,
+      "group": "governance",
+      "evidence": "Kiểm toán, công bố, quyền cổ đông",
+      "anchors": {
+        "9-10": "Minh bạch, kiểm soát và thực thi tốt",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Vi phạm hoặc xung đột nghiêm trọng",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C11",
+      "name": "Sở hữu và phân bổ vốn",
+      "weight": 7,
+      "group": "governance",
+      "evidence": "Nội bộ, pha loãng, M&A, cổ tức",
+      "anchors": {
+        "9-10": "Phân bổ vốn tạo giá trị trên mỗi cổ phần",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Pha loãng hoặc giao dịch gây thiệt hại",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C12",
+      "name": "Định giá",
+      "weight": 10,
+      "group": "valuation",
+      "evidence": "DCF/RNAV/multiples, peer và lịch sử",
+      "anchors": {
+        "9-10": "Nhiều phương pháp đáng tin cùng cho thấy rẻ",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Đắt theo giả định hợp lý",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C13",
+      "name": "MOS và risk/reward",
+      "weight": 10,
+      "group": "valuation",
+      "evidence": "MOS, downside, độ nhạy",
+      "anchors": {
+        "9-10": "MOS đạt chính sách và downside chịu được",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "MOS âm hoặc downside bất lợi",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C14",
+      "name": "Catalyst",
+      "weight": 6,
+      "group": "timing",
+      "evidence": "Mốc, điều kiện, bằng chứng, tác động",
+      "anchors": {
+        "9-10": "Catalyst rõ, có căn cứ và thời hạn",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Không có cơ chế định giá lại hoặc bị trì hoãn",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    },
+    {
+      "id": "C15",
+      "name": "Kỳ vọng và thời điểm",
+      "weight": 4,
+      "group": "timing",
+      "evidence": "Reverse valuation, thanh khoản, kỳ vọng",
+      "anchors": {
+        "9-10": "Kỳ vọng thấp hơn triển vọng có căn cứ",
+        "7-8": "Tốt, bằng chứng vượt chuẩn ngành nhưng còn hạn chế nhỏ",
+        "5-6": "Hỗn hợp hoặc ngang chuẩn ngành; giải thích cả hai chiều",
+        "3-4": "Yếu đáng kể so với chuẩn ngành; chưa tới mức nghiêm trọng",
+        "1-2": "Giá phản ánh giả định quá lạc quan",
+        "0": "Có bằng chứng thất bại cực đoan của tiêu chí",
+        "null": "Không đủ bằng chứng; nêu lý do"
+      }
+    }
+  ],
+  "formula": {
+    "coverage": "sum weights of non-null scores",
+    "observed_points": "sum(weight*score/10)",
+    "normalized_score": "100*observed_points/coverage; null if coverage=0",
+    "official_total": "normalized_score only if coverage=100; otherwise null",
+    "confidence": "separate qualitative HIGH/MEDIUM/LOW with rationale; never inferred from score"
+  },
+  "ranking": "Only comparable full-coverage scores in official ranking; partial candidates separate, provisional. Same rubric and cutoff.",
+  "risk_gate": [
+    "PASS",
+    "CAUTION",
+    "RESTRICTED",
+    "BLOCKED"
+  ],
+  "critical_criteria": [
+    "C06",
+    "C07",
+    "C08",
+    "C10",
+    "C11",
+    "C12",
+    "C13"
+  ]
+}

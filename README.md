@@ -25,3 +25,7 @@ VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 Chỉ dùng publishable key ở frontend. Không bao giờ đưa service role / secret key vào mã frontend.
+
+## Mã nguồn backend
+`supabase/functions/` chứa mã các Edge Function (bản đã deploy), `supabase/migrations/` chứa migration Giai đoạn 1.
+`_shared/validator.js` là bản chuyển từ `validate.py`; khi sửa framework phải sửa cả hai và chạy lại các file mẫu.
