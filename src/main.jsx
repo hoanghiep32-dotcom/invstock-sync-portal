@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
 import './style.css'
+import PublicLibrary from './library.jsx'
+import './library.css'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -843,4 +845,5 @@ function App() {
   )
 }
 
-createRoot(document.getElementById('root')).render(<App />)
+const isAdminPortal = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')
+createRoot(document.getElementById('root')).render(isAdminPortal ? <App /> : <PublicLibrary />)
