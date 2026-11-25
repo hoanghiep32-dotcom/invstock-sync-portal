@@ -513,7 +513,7 @@ function App() {
         )}
       </header>
 
-      {true ? (
+      {false ? (
         <section className="panel auth-panel">
           <h2>Đăng nhập Supabase</h2>
 
