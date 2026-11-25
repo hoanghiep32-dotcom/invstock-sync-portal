@@ -56,6 +56,30 @@ function App() {
   const [result, setResult] = useState(null)
   const [promptSummary, setPromptSummary] = useState('')
 
+  // Khôi phục đúng payload đã được người dùng bấm Sync trước khi chuyển qua Magic Link.
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('invstock_pending_sync_v1')
+      if (!saved) return
+      const pending = JSON.parse(saved)
+      const fresh = Date.now() - Number(pending.createdAt || 0) < 30 * 60 * 1000
+      if (!fresh || !pending.payload || !pending.payloadHash || pending.consent !== true) {
+        sessionStorage.removeItem('invstock_pending_sync_v1')
+        return
+      }
+      setMode(pending.mode === 'screening' ? 'screening' : 'research')
+      setPayload(pending.payload)
+      setRaw(JSON.stringify(pending.payload, null, 2))
+      setPayloadHash(pending.payloadHash)
+      setConsent(true)
+      setPromptSummary(pending.promptSummary || '')
+      setPendingSync(true)
+      setMessage('Đã khôi phục payload đã chấp thuận. Đang chờ xác thực để tiếp tục Sync.')
+    } catch {
+      sessionStorage.removeItem('invstock_pending_sync_v1')
+    }
+  }, [])
+
   // =========================================================
   // AUTH INITIALIZATION
   // Restore existing session and detect Magic Link callback.
@@ -319,10 +343,32 @@ function App() {
   async function syncNow() {
     if (!payload || !consent || !payloadHash) return
     if (!session) {
+      try {
+        sessionStorage.setItem('invstock_pending_sync_v1', JSON.stringify({
+          mode,
+          payload,
+          payloadHash,
+          consent: true,
+          promptSummary,
+          createdAt: Date.now()
+        }))
+      } catch {
+        setError('Không thể lưu yêu cầu Sync trong phiên trình duyệt. Hãy giữ tab này mở và thử lại.')
+        return
+      }
       setPendingSync(true)
       setAuthPrompt(true)
       setError('')
       setMessage('Để đồng bộ vào Supabase, bạn cần xác thực tài khoản được cấp quyền. Payload, Preview và Approval sẽ được giữ nguyên.')
+      return
+    }
+
+    const currentHash = await sha256(JSON.stringify(payload))
+    if (currentHash !== payloadHash) {
+      setError('Payload đã thay đổi so với SHA-256 được chấp thuận. Hãy tạo Preview và chấp thuận lại.')
+      setConsent(false)
+      setPendingSync(false)
+      sessionStorage.removeItem('invstock_pending_sync_v1')
       return
     }
 
@@ -394,6 +440,7 @@ function App() {
       )
 
       setConsent(false)
+      sessionStorage.removeItem('invstock_pending_sync_v1')
     } catch (err) {
       setError(err.message || 'Đồng bộ thất bại.')
     } finally {
@@ -768,6 +815,7 @@ function App() {
             onClick={() => {
               setAuthPrompt(false)
               setPendingSync(false)
+              sessionStorage.removeItem('invstock_pending_sync_v1')
               setMessage('Đã hủy yêu cầu Sync. Payload và Preview vẫn được giữ nguyên.')
             }}
           >
