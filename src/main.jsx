@@ -40,6 +40,8 @@ function App() {
   const [email, setEmail] = useState(DEFAULT_EMAIL)
   const [otpSent, setOtpSent] = useState(false)
   const [authBusy, setAuthBusy] = useState(false)
+  const [authPrompt, setAuthPrompt] = useState(false)
+  const [pendingSync, setPendingSync] = useState(false)
 
   const [mode, setMode] = useState('research')
   const [raw, setRaw] = useState('')
@@ -70,7 +72,9 @@ function App() {
       setAuthReady(true)
 
       if (event === 'SIGNED_IN') {
-        setMessage('Xác thực thành công. Đang mở Sync Portal...')
+        setAuthPrompt(false)
+        setOtpSent(false)
+        setMessage('Xác thực thành công. Đang tiếp tục đồng bộ payload đã chấp thuận...')
         setError('')
       }
 
@@ -154,7 +158,7 @@ function App() {
       setOtpSent(true)
 
       setMessage(
-        'Đã gửi Magic Link. Hãy mở email và nhấn liên kết đăng nhập. Portal sẽ tự động xác thực.'
+        'Đã gửi Magic Link. Hãy mở email và nhấn liên kết. Sau khi xác thực, Portal sẽ tiếp tục yêu cầu đồng bộ đang chờ.'
       )
     } catch (err) {
       setError(err.message || 'Không gửi được Magic Link.')
@@ -180,13 +184,10 @@ function App() {
     setSession(null)
     setOtpSent(false)
 
-    setRaw('')
-    setPayload(null)
-    setPayloadHash('')
-    setConsent(false)
-    setResult(null)
-
-    setMessage('Đã đăng xuất.')
+    setAuthPrompt(false)
+    setOtpSent(false)
+    // Giữ nguyên payload, Preview và Approval khi đăng xuất.
+    setMessage('Đã đăng xuất. Payload và Preview hiện tại vẫn được giữ lại.')
   }
 
   // =========================================================
@@ -202,6 +203,7 @@ function App() {
     setError('')
     setMessage('')
     setPromptSummary('')
+    setPendingSync(false)
   }
 
   // =========================================================
@@ -315,7 +317,12 @@ function App() {
   // SYNC PAYLOAD
   // =========================================================
   async function syncNow() {
-    if (!session || !payload || !consent || !payloadHash) {
+    if (!payload || !consent || !payloadHash) return
+    if (!session) {
+      setPendingSync(true)
+      setAuthPrompt(true)
+      setError('')
+      setMessage('Để đồng bộ vào Supabase, bạn cần xác thực tài khoản được cấp quyền. Payload, Preview và Approval sẽ được giữ nguyên.')
       return
     }
 
@@ -394,6 +401,14 @@ function App() {
     }
   }
 
+  // Sau khi Magic Link tạo session, tự tiếp tục Sync payload đã được chấp thuận.
+  useEffect(() => {
+    if (session && pendingSync && authReady && !busy) {
+      setPendingSync(false)
+      syncNow()
+    }
+  }, [session, pendingSync, authReady, busy])
+
   // =========================================================
   // CONFIGURATION CHECK
   // =========================================================
@@ -418,23 +433,6 @@ function App() {
   }
 
   // =========================================================
-  // WAIT FOR AUTH INITIALIZATION
-  // =========================================================
-  if (!authReady) {
-    return (
-      <main className="shell">
-        <section className="panel">
-          <h1>InvStock Sync Portal</h1>
-
-          <p className="muted">
-            Đang xác minh phiên đăng nhập với Supabase...
-          </p>
-        </section>
-      </main>
-    )
-  }
-
-  // =========================================================
   // MAIN UI
   // =========================================================
   return (
@@ -448,8 +446,7 @@ function App() {
           <h1>Sync Portal</h1>
 
           <p className="muted">
-            Cổng đồng bộ có xác thực · Option B ·
-            Không tự động ghi dữ liệu
+            Full Research & Screening · Mở trực tiếp, chỉ xác thực khi đồng bộ
           </p>
         </div>
 
@@ -469,7 +466,7 @@ function App() {
         )}
       </header>
 
-      {!session ? (
+      {true ? (
         <section className="panel auth-panel">
           <h2>Đăng nhập Supabase</h2>
 
@@ -523,11 +520,7 @@ function App() {
       ) : (
         <>
           <section className="notice">
-            <strong>Quy tắc an toàn:</strong> Portal chỉ gửi
-            dữ liệu sau khi bạn kiểm tra bản xem trước và
-            tích xác nhận. Hash được kiểm tra lại ở Edge
-            Function. service_role không được đưa xuống trình
-            duyệt.
+            <strong>Quy tắc an toàn:</strong> Có thể nghiên cứu và xem Preview mà không đăng nhập. Khi Sync, Supabase vẫn xác minh JWT và quyền admin/reviewer ở backend. Dữ liệu chỉ được gửi sau khi bạn kiểm tra Preview và chấp thuận payload.
           </section>
 
           <section className="panel">
@@ -739,6 +732,48 @@ function App() {
             </section>
           )}
         </>
+      )}
+
+
+      {authPrompt && !session && (
+        <section className="panel auth-panel">
+          <h2>Đăng nhập để tiếp tục đồng bộ</h2>
+          <p className="muted">
+            Bạn chỉ cần xác thực ở bước ghi dữ liệu. Sau khi Magic Link được xác nhận,
+            Portal sẽ tự tiếp tục đồng bộ payload đã Preview và chấp thuận.
+          </p>
+          <form onSubmit={sendOtp}>
+            <label>Email Supabase</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              placeholder="email@example.com"
+              autoComplete="email"
+            />
+            <button className="button primary" disabled={authBusy}>
+              {authBusy ? 'Đang gửi…' : 'Gửi Magic Link để tiếp tục Sync'}
+            </button>
+          </form>
+          {otpSent && (
+            <div className="hint">
+              <strong>Kiểm tra email của bạn.</strong>
+              <p>Nhấn Magic Link mới nhất. Không cần nhập mã OTP. Không sử dụng liên kết cũ đã mở hoặc hết hạn.</p>
+            </div>
+          )}
+          <button
+            className="button subtle"
+            type="button"
+            onClick={() => {
+              setAuthPrompt(false)
+              setPendingSync(false)
+              setMessage('Đã hủy yêu cầu Sync. Payload và Preview vẫn được giữ nguyên.')
+            }}
+          >
+            Để sau, quay lại Preview
+          </button>
+        </section>
       )}
 
       {message && (
