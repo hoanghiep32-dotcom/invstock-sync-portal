@@ -3,6 +3,13 @@ import './style.css'
 
 const API = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-research-library`
 const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const READING_PROGRESS_KEY = 'invstock_last_reading_v1'
+
+function saveReadingProgress(path, scrollY = window.scrollY) {
+  try {
+    localStorage.setItem(READING_PROGRESS_KEY, JSON.stringify({ path, scrollY, savedAt: Date.now() }))
+  } catch { /* local storage may be unavailable */ }
+}
 
 async function readApi(params) {
   const url = new URL(API)
@@ -136,6 +143,29 @@ function ResearchPage({ ticker }) {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [ticker])
+
+  const readingPath = `/research/${encodeURIComponent(ticker)}`
+  useEffect(() => {
+    const save = () => saveReadingProgress(readingPath)
+    save()
+    window.addEventListener('scroll', save, { passive: true })
+    window.addEventListener('beforeunload', save)
+    return () => {
+      save()
+      window.removeEventListener('scroll', save)
+      window.removeEventListener('beforeunload', save)
+    }
+  }, [readingPath])
+
+  useEffect(() => {
+    if (!data) return
+    try {
+      const saved = JSON.parse(localStorage.getItem(READING_PROGRESS_KEY) || 'null')
+      if (saved?.path === readingPath && Number.isFinite(Number(saved.scrollY))) {
+        requestAnimationFrame(() => window.scrollTo({ top: Number(saved.scrollY), behavior: 'instant' }))
+      }
+    } catch { /* ignore invalid saved progress */ }
+  }, [data, readingPath])
 
   const payload = data?.version?.payload || {}
   const preferred = ['metadata','executive_summary','investment_thesis','company_profile','financial_analysis','valuation','scorecard','technical_analysis','ownership_and_flows','catalysts','risks','investment_decision','data_quality','sources']
