@@ -13,6 +13,8 @@ const RESEARCH_APPROVAL =
   'TÔI ĐỒNG Ý ĐỒNG BỘ PAYLOAD NÀY VÀO SUPABASE'
 
 const DEFAULT_EMAIL = 'hoanghiep32@gmail.com'
+const AUTH_REDIRECT_URL = 'https://invstocktracker.vercel.app/'
+const MAGIC_LINK_COOLDOWN_KEY = 'invstock_magiclink_cooldown_until_v1'
 
 const supabase = createClient(
   SUPABASE_URL || '',
@@ -51,6 +53,10 @@ function App() {
   const [email, setEmail] = useState(DEFAULT_EMAIL)
   const [otpSent, setOtpSent] = useState(false)
   const [authBusy, setAuthBusy] = useState(false)
+  const [otpCooldownUntil, setOtpCooldownUntil] = useState(() => {
+    const saved = Number(localStorage.getItem(MAGIC_LINK_COOLDOWN_KEY) || 0)
+    return saved > Date.now() ? saved : 0
+  })
   const [authPrompt, setAuthPrompt] = useState(false)
   const [pendingSync, setPendingSync] = useState(false)
 
@@ -174,6 +180,7 @@ function App() {
   // =========================================================
   async function sendOtp(e) {
     e.preventDefault()
+    if (authBusy || otpSent || otpCooldownUntil > Date.now()) return
 
     setError('')
     setMessage('')
@@ -184,7 +191,7 @@ function App() {
         email: email.trim(),
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: window.location.origin
+          emailRedirectTo: AUTH_REDIRECT_URL
         }
       })
 
@@ -196,7 +203,15 @@ function App() {
         'Đã gửi Magic Link. Hãy mở email và nhấn liên kết. Sau khi xác thực, Portal sẽ tiếp tục yêu cầu đồng bộ đang chờ.'
       )
     } catch (err) {
-      setError(err.message || 'Không gửi được Magic Link.')
+      const authErrorCode = err.code || err.error || ''
+      if (authErrorCode === 'over_email_send_rate_limit' || /over_email_send_rate_limit|email.*rate.?limit|too many emails/i.test(err.message || '')) {
+        const until = Date.now() + 60 * 60 * 1000
+        localStorage.setItem(MAGIC_LINK_COOLDOWN_KEY, String(until))
+        setOtpCooldownUntil(until)
+        setError('Supabase đã chặn gửi email do vượt hạn mức. Đây là giới hạn gửi email của Supabase, không phải lỗi build Vercel. Portal đã khóa nút gửi lại trong 60 phút để tránh tiếp tục làm quota bị khóa. Không bấm gửi lại trong thời gian này.')
+      } else {
+        setError(err.message || 'Không gửi được Magic Link.')
+      }
     } finally {
       setAuthBusy(false)
     }
@@ -557,11 +572,13 @@ function App() {
 
             <button
               className="button primary"
-              disabled={authBusy}
+              disabled={authBusy || otpSent || otpCooldownUntil > Date.now()}
             >
               {authBusy
                 ? 'Đang gửi…'
-                : 'Gửi Magic Link'}
+                : otpCooldownUntil > Date.now()
+                  ? 'Tạm khóa do giới hạn email'
+                  : otpSent ? 'Đã gửi – kiểm tra email' : 'Gửi Magic Link'}
             </button>
           </form>
 
@@ -819,8 +836,8 @@ function App() {
               placeholder="email@example.com"
               autoComplete="email"
             />
-            <button className="button primary" disabled={authBusy}>
-              {authBusy ? 'Đang gửi…' : 'Gửi Magic Link để tiếp tục Sync'}
+            <button className="button primary" disabled={authBusy || otpSent || otpCooldownUntil > Date.now()}>
+              {authBusy ? 'Đang gửi…' : otpCooldownUntil > Date.now() ? 'Tạm khóa do giới hạn email' : otpSent ? 'Đã gửi – kiểm tra email' : 'Gửi Magic Link để tiếp tục Sync'}
             </button>
           </form>
           {otpSent && (
