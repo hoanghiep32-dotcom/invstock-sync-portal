@@ -13,8 +13,6 @@ const RESEARCH_APPROVAL =
   'TÔI ĐỒNG Ý ĐỒNG BỘ PAYLOAD NÀY VÀO SUPABASE'
 
 const DEFAULT_EMAIL = 'hoanghiep32@gmail.com'
-const AUTH_REDIRECT_URL = 'https://invstocktracker.vercel.app/'
-const MAGIC_LINK_COOLDOWN_KEY = 'invstock_magiclink_cooldown_until_v1'
 
 const supabase = createClient(
   SUPABASE_URL || '',
@@ -23,7 +21,7 @@ const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: false
     }
   }
 )
@@ -51,12 +49,8 @@ function App() {
   const [authReady, setAuthReady] = useState(false)
 
   const [email, setEmail] = useState(DEFAULT_EMAIL)
-  const [otpSent, setOtpSent] = useState(false)
+  const [password, setPassword] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
-  const [otpCooldownUntil, setOtpCooldownUntil] = useState(() => {
-    const saved = Number(localStorage.getItem(MAGIC_LINK_COOLDOWN_KEY) || 0)
-    return saved > Date.now() ? saved : 0
-  })
   const [authPrompt, setAuthPrompt] = useState(false)
   const [pendingSync, setPendingSync] = useState(false)
 
@@ -73,7 +67,7 @@ function App() {
   const [result, setResult] = useState(null)
   const [promptSummary, setPromptSummary] = useState('')
 
-  // Khôi phục đúng payload đã được người dùng bấm Sync trước khi chuyển qua Magic Link.
+  // Khôi phục payload đã được người dùng chấp thuận trước khi đăng nhập.
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem('invstock_pending_sync_v1')
@@ -99,7 +93,7 @@ function App() {
 
   // =========================================================
   // AUTH INITIALIZATION
-  // Restore existing session and detect Magic Link callback.
+  // Restore the existing persistent session.
   // =========================================================
   useEffect(() => {
     let active = true
@@ -114,8 +108,9 @@ function App() {
 
       if (event === 'SIGNED_IN') {
         setAuthPrompt(false)
-        setOtpSent(false)
-        setMessage('Xác thực thành công. Đang tiếp tục đồng bộ payload đã chấp thuận...')
+        setPassword('')
+        setAuthPrompt(false)
+        setMessage('Đăng nhập thành công. Đang tiếp tục đồng bộ payload đã chấp thuận...')
         setError('')
       }
 
@@ -176,42 +171,29 @@ function App() {
   }, [payload, mode])
 
   // =========================================================
-  // SEND MAGIC LINK
+  // EMAIL + PASSWORD SIGN-IN (NO EMAIL DELIVERY)
   // =========================================================
-  async function sendOtp(e) {
+  async function signIn(e) {
     e.preventDefault()
-    if (authBusy || otpSent || otpCooldownUntil > Date.now()) return
+    if (authBusy) return
 
     setError('')
     setMessage('')
     setAuthBusy(true)
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        options: {
-          shouldCreateUser: false,
-          emailRedirectTo: AUTH_REDIRECT_URL
-        }
+        password
       })
 
       if (error) throw error
 
-      setOtpSent(true)
-
-      setMessage(
-        'Đã gửi Magic Link. Hãy mở email và nhấn liên kết. Sau khi xác thực, Portal sẽ tiếp tục yêu cầu đồng bộ đang chờ.'
-      )
+      setPassword('')
+      setAuthPrompt(false)
+      setMessage('Đăng nhập thành công. Đang tiếp tục đồng bộ payload đã chấp thuận...')
     } catch (err) {
-      const authErrorCode = err.code || err.error || ''
-      if (authErrorCode === 'over_email_send_rate_limit' || /over_email_send_rate_limit|email.*rate.?limit|too many emails/i.test(err.message || '')) {
-        const until = Date.now() + 60 * 60 * 1000
-        localStorage.setItem(MAGIC_LINK_COOLDOWN_KEY, String(until))
-        setOtpCooldownUntil(until)
-        setError('Supabase đã chặn gửi email do vượt hạn mức. Đây là giới hạn gửi email của Supabase, không phải lỗi build Vercel. Portal đã khóa nút gửi lại trong 60 phút để tránh tiếp tục làm quota bị khóa. Không bấm gửi lại trong thời gian này.')
-      } else {
-        setError(err.message || 'Không gửi được Magic Link.')
-      }
+      setError(err.message || 'Đăng nhập không thành công. Hãy kiểm tra email và mật khẩu.')
     } finally {
       setAuthBusy(false)
     }
@@ -232,10 +214,8 @@ function App() {
     }
 
     setSession(null)
-    setOtpSent(false)
-
+    setPassword('')
     setAuthPrompt(false)
-    setOtpSent(false)
     // Giữ nguyên payload, Preview và Approval khi đăng xuất.
     setMessage('Đã đăng xuất. Payload và Preview hiện tại vẫn được giữ lại.')
   }
@@ -474,7 +454,7 @@ function App() {
     }
   }
 
-  // Sau khi Magic Link tạo session, tự tiếp tục Sync payload đã được chấp thuận.
+  // Sau khi đăng nhập tạo session, tự tiếp tục Sync payload đã được chấp thuận.
   useEffect(() => {
     if (session && pendingSync && authReady && !busy) {
       setPendingSync(false)
@@ -549,58 +529,7 @@ function App() {
       </header>
 
       {false ? (
-        <section className="panel auth-panel">
-          <h2>Đăng nhập Supabase</h2>
-
-          <p className="muted">
-            Dùng email đã được cấp quyền admin trong project
-            Stock Analysis. Portal gửi Magic Link để đăng nhập
-            tự động, không tạo tài khoản mới.
-          </p>
-
-          <form onSubmit={sendOtp}>
-            <label>Email Supabase</label>
-
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              placeholder="email@example.com"
-              autoComplete="email"
-            />
-
-            <button
-              className="button primary"
-              disabled={authBusy || otpSent || otpCooldownUntil > Date.now()}
-            >
-              {authBusy
-                ? 'Đang gửi…'
-                : otpCooldownUntil > Date.now()
-                  ? 'Tạm khóa do giới hạn email'
-                  : otpSent ? 'Đã gửi – kiểm tra email' : 'Gửi Magic Link'}
-            </button>
-          </form>
-
-          {otpSent && (
-            <div className="hint">
-              <strong>Kiểm tra email của bạn.</strong>
-              <p>
-                Hãy mở email Supabase và nhấn vào liên kết
-                đăng nhập (Magic Link). Không cần nhập mã OTP.
-              </p>
-              <p>
-                Nếu không thấy email, hãy kiểm tra Spam/Junk.
-              </p>
-            </div>
-          )}
-
-          <div className="hint">
-            Chỉ tài khoản có vai trò admin đang hoạt động
-            mới được phép đồng bộ. Đăng nhập thành công
-            không đồng nghĩa được cấp quyền ghi.
-          </div>
-        </section>
+        <></>
       ) : (
         <>
           <section className="notice">
@@ -823,10 +752,10 @@ function App() {
         <section className="panel auth-panel">
           <h2>Đăng nhập để tiếp tục đồng bộ</h2>
           <p className="muted">
-            Bạn chỉ cần xác thực ở bước ghi dữ liệu. Sau khi Magic Link được xác nhận,
-            Portal sẽ tự tiếp tục đồng bộ payload đã Preview và chấp thuận.
+            Dùng tài khoản admin đã có trong Supabase. Cách đăng nhập này không gửi email.
+            Sau khi đăng nhập, Portal sẽ tự tiếp tục đồng bộ payload đã Preview và chấp thuận.
           </p>
-          <form onSubmit={sendOtp}>
+          <form onSubmit={signIn}>
             <label>Email Supabase</label>
             <input
               type="email"
@@ -834,18 +763,25 @@ function App() {
               onChange={e => setEmail(e.target.value)}
               required
               placeholder="email@example.com"
-              autoComplete="email"
+              autoComplete="username"
             />
-            <button className="button primary" disabled={authBusy || otpSent || otpCooldownUntil > Date.now()}>
-              {authBusy ? 'Đang gửi…' : otpCooldownUntil > Date.now() ? 'Tạm khóa do giới hạn email' : otpSent ? 'Đã gửi – kiểm tra email' : 'Gửi Magic Link để tiếp tục Sync'}
+            <label>Mật khẩu</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              placeholder="Nhập mật khẩu Supabase"
+            />
+            <button className="button primary" disabled={authBusy || !email.trim() || !password}>
+              {authBusy ? 'Đang xác thực…' : 'Đăng nhập & tiếp tục Sync'}
             </button>
           </form>
-          {otpSent && (
-            <div className="hint">
-              <strong>Kiểm tra email của bạn.</strong>
-              <p>Nhấn Magic Link mới nhất. Không cần nhập mã OTP. Không sử dụng liên kết cũ đã mở hoặc hết hạn.</p>
-            </div>
-          )}
+          <div className="hint">
+            Chỉ tài khoản có vai trò admin đang hoạt động mới được phép đồng bộ.
+            Mật khẩu không được lưu vào hệ thống hoặc gửi qua email.
+          </div>
           <button
             className="button subtle"
             type="button"
