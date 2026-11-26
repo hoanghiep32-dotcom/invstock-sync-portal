@@ -313,7 +313,7 @@ await scenario("B22", "Compare/Screening", async () => {
   ok(!V.operation({ ...op, identity: { ticker: "FPT", exchange: "HOSE" } }).length, "operation luôn gắn một mã (identity)");
   let threw = false; try { await C.buildManifest(enc.encode('{"schema_name":"invstock_screening_v2","metadata":{}}'), PROFILE); } catch { threw = true; }
   ok(threw, "không dựng được manifest block từ bản screening → không sinh block version");
-  mark("ĐẠT", "Phần DB (nạp screening không đổi head/publication/manifest của FPT) chạy trong SQL GĐ 6.");
+  mark("ĐẠT", "Screening và nghiên cứu có lineage riêng (research:MÃ:SÀN / screening:gốc); manifest chỉ dựng cho bản nghiên cứu.");
 });
 
 // ---------------- Gộp nhiều operation ----------------
