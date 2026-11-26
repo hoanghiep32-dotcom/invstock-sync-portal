@@ -336,9 +336,12 @@ function TopBar({ children, progress }) {
 const HomeIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5" /><path d="M6.5 10v9h11v-9" /></svg>
 
 // Hàng tab: Thư viện luôn ở đầu, sau đó là các bài đang mở. Đóng tab không xóa bài, chỉ bỏ khỏi hàng.
+// Tab hồ sơ (Tổng quan / Lịch sử…) vẫn thuộc cùng một tab bài đang mở.
+const withoutProfileTab = path => path.replace(/&tab=[a-z-]+/, '')
+
 function TabStrip() {
   const { tabs, home } = useTabs()
-  const here = currentPath()
+  const here = withoutProfileTab(currentPath())
   const onCompare = window.location.pathname === '/compare'
   const research = tabs.filter(t => t.kind === 'research' && t.ticker)
   const stripRef = useRef(null)
@@ -698,11 +701,11 @@ function BackToTop() {
   return show ? <button className="rl-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Lên đầu trang">↑</button> : null
 }
 
-function ReportSection({ id, title, kicker, children }) {
+function ReportSection({ id, title, kicker, blocks, children }) {
   const prefix = useContext(IdPrefix)
   return <section className="rl-section" id={prefix + id}>
     {kicker && <div className="rl-kicker">{kicker}</div>}
-    <h2>{title}</h2>
+    <h2>{title}{blocks && <BlockTag paths={blocks} />}</h2>
     {children}
   </section>
 }
@@ -1020,14 +1023,15 @@ function Chapter({ modules, keys }) {
   const present = keys.filter(k => modules?.[k])
   if (!present.length) return null
   return present.map(k => <div className="rl-sub" id={`${prefix}module-${k}`} key={k}>
-    {present.length > 1 && <h3 className="rl-sub-title">{MODULES[k] || titleCase(k)}</h3>}
+    {present.length > 1 ? <h3 className="rl-sub-title">{MODULES[k] || titleCase(k)}<BlockTag paths={[`/modules/${k}`]} /></h3>
+      : <BlockTag paths={[`/modules/${k}`]} standalone />}
     <ModuleBody m={modules[k]} />
   </div>)
 }
 
 function CatalystBlock({ items }) {
   if (!items?.length) return <p className="rl-muted">Không có catalyst.</p>
-  return <ol className="rl-timeline">{items.map((c, i) => <li key={i}>
+  return <ol className="rl-publine">{items.map((c, i) => <li key={i}>
     <div className="rl-timeline-when">{c.window}</div>
     <div className="rl-timeline-body">
       <h3><Term>{c.event}</Term> <Refs ids={c.source_ids} /></h3>
@@ -1065,9 +1069,9 @@ function SourcesBlock({ sources }) {
   </li>)}</ol>
 }
 
-function ReportHeader({ kicker, title, sub, chips }) {
+function ReportHeader({ kicker, title, sub, chips, back }) {
   return <section className="rl-report-head">
-    <a className="rl-back" href="/">← Thư viện</a>
+    {back || <a className="rl-back" href="/">← Thư viện</a>}
     {kicker && <div className="rl-kicker">{kicker}</div>}
     <h1>{title}</h1>
     {sub && <p className="rl-report-sub">{sub}</p>}
@@ -1110,20 +1114,20 @@ function ResearchArticle({ data, criteria }) {
   const mods = p.modules || {}
   const otherKeys = Object.keys(mods).filter(k => !PLACED.has(k))
   return <GlossaryScope sector={data.sector}><article className="rl-article">
-    <ReportSection id="tom-tat" title="Tóm tắt">
+    <ReportSection id="tom-tat" title="Tóm tắt" blocks={['/modules/executive_summary']}>
       {mods.executive_summary ? <div className="rl-summary">
         <ModuleBody m={mods.executive_summary} />
       </div> : <p className="rl-muted">Không có tóm tắt.</p>}
     </ReportSection>
 
-    {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư">
+    {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư" blocks={['/decision', '/modules/decision_monitoring']}>
       {mods.decision_monitoring?.analysis && <Prose text={mods.decision_monitoring.analysis} />}
       <ThesisBlock decision={p.decision} />
       {mods.decision_monitoring?.metrics?.length > 0 && <MetricsView metrics={mods.decision_monitoring.metrics} />}
       <Gaps items={mods.decision_monitoring?.gaps} />
     </ReportSection>}
 
-    {(p.valuation || mods.valuation_engine) && <ReportSection id="dinh-gia" title="Định giá" kicker={`Đơn vị: ${p.valuation?.currency || 'VND'}/cổ phiếu`}>
+    {(p.valuation || mods.valuation_engine) && <ReportSection id="dinh-gia" title="Định giá" blocks={['/valuation', '/modules/valuation_engine']} kicker={`Đơn vị: ${p.valuation?.currency || 'VND'}/cổ phiếu`}>
       <ValuationBlock v={p.valuation} />
       {mods.valuation_engine && <div className="rl-sub">
         <h3 className="rl-sub-title">Mô hình định giá</h3>
@@ -1137,21 +1141,21 @@ function ResearchArticle({ data, criteria }) {
 
     {otherKeys.length > 0 && <ReportSection id="khac" title="Phân tích khác"><Chapter modules={mods} keys={otherKeys} /></ReportSection>}
 
-    {p.scorecard && <ReportSection id="scorecard" title="Scorecard 15 tiêu chí"><ScorecardBlock scorecard={p.scorecard} criteria={criteria} /></ReportSection>}
+    {p.scorecard && <ReportSection id="scorecard" title="Scorecard 15 tiêu chí" blocks={['/scorecard']}><ScorecardBlock scorecard={p.scorecard} criteria={criteria} /></ReportSection>}
 
-    {p.risk && <ReportSection id="rui-ro" title="Rủi ro">
+    {p.risk && <ReportSection id="rui-ro" title="Rủi ro" blocks={['/risk', '/modules/scorecard_risk']}>
       {mods.scorecard_risk?.analysis && <Prose text={mods.scorecard_risk.analysis} />}
       <RiskBlock risk={p.risk} />
       {mods.scorecard_risk?.metrics?.length > 0 && <MetricsView metrics={mods.scorecard_risk.metrics} />}
     </ReportSection>}
 
-    {(p.catalysts?.length > 0 || p.monitoring?.length > 0 || mods.catalysts_expectations) && <ReportSection id="catalyst" title="Catalyst và theo dõi">
+    {(p.catalysts?.length > 0 || p.monitoring?.length > 0 || mods.catalysts_expectations) && <ReportSection id="catalyst" title="Catalyst và theo dõi" blocks={['/catalysts', '/monitoring', '/modules/catalysts_expectations']}>
       {mods.catalysts_expectations && <ModuleBody m={mods.catalysts_expectations} />}
       {p.catalysts?.length > 0 && <><h3 className="rl-sub-title">Sự kiện sắp tới</h3><CatalystBlock items={p.catalysts} /></>}
       {p.monitoring?.length > 0 && <><h3 className="rl-sub-title">Chỉ tiêu cần theo dõi</h3><MonitoringBlock items={p.monitoring} /></>}
     </ReportSection>}
 
-    {(p.core10 || p.committee) && <ReportSection id="phan-bien" title="Phản biện">
+    {(p.core10 || p.committee) && <ReportSection id="phan-bien" title="Phản biện" blocks={['/core10', '/committee']}>
       {p.core10 && <div className="rl-sub"><h3 className="rl-sub-title">10 câu hỏi cốt lõi</h3><OpinionList items={p.core10} numbered /></div>}
       {p.committee && <div className="rl-sub"><h3 className="rl-sub-title">Hội đồng đầu tư · 6 góc nhìn</h3><OpinionList items={p.committee} labels={COMMITTEE} /></div>}
     </ReportSection>}
@@ -1166,41 +1170,385 @@ function ResearchArticle({ data, criteria }) {
 
 const useSourceMap = data => useMemo(() => Object.fromEntries((data?.payload?.sources || []).map(s => [s.id, s])), [data])
 
-function ResearchPage({ ticker, exchange }) {
+/* ---------- Khối nội dung (tài liệu 13, giai đoạn 2: đọc trực tiếp 14 module và cấu phần top-level) ---------- */
+
+// Danh mục khối theo key của schema 02. Chưa có registry/manifest chính thức: trạng thái "đổi / giữ nguyên"
+// dưới đây là so sánh hiển thị giữa các bản đã xuất bản, không phải content hash hay block version.
+const BLOCKS = [
+  ...Object.keys(MODULES).map(k => ({ path: `/modules/${k}`, title: MODULES[k], kind: 'module' })),
+  { path: '/valuation', title: 'Định giá (số liệu chính thức)', kind: 'component' },
+  { path: '/scorecard', title: 'Scorecard (điểm chính thức)', kind: 'component' },
+  { path: '/risk', title: 'Rủi ro (cổng rủi ro)', kind: 'component' },
+  { path: '/decision', title: 'Quyết định', kind: 'component' },
+  { path: '/core10', title: '10 câu hỏi cốt lõi', kind: 'component' },
+  { path: '/committee', title: 'Hội đồng 6 góc nhìn', kind: 'component' },
+  { path: '/catalysts', title: 'Catalyst', kind: 'component' },
+  { path: '/monitoring', title: 'Chỉ tiêu theo dõi', kind: 'component' },
+  { path: '/sources', title: 'Nguồn', kind: 'component' },
+  { path: '/identity', title: 'Định danh', kind: 'component' }
+]
+const pointer = (obj, path) => path.split('/').slice(1).reduce((o, k) => (o == null ? undefined : o[k]), obj)
+const stable = v => Array.isArray(v) ? `[${v.map(stable).join(',')}]`
+  : v && typeof v === 'object' ? `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
+  : JSON.stringify(v ?? null)
+
+// Với chuỗi các bản đã xuất bản (theo revision), tính cho từng khối: mới / đổi / giữ nguyên so với bản liền trước.
+function blockLineage(versions) {
+  const out = {}
+  BLOCKS.forEach(b => {
+    let prev = null, since = null
+    out[b.path] = versions.map((v, i) => {
+      const cur = pointer(v.payload, b.path)
+      const key = cur === undefined ? null : stable(cur)
+      let state
+      if (key === null) state = 'ABSENT'
+      else if (i === 0 || prev === null) state = 'INITIAL'
+      else state = key === prev ? 'INHERITED' : 'CHANGED'
+      if (state === 'INITIAL' || state === 'CHANGED') since = v.revision
+      prev = key
+      return { revision: v.revision, record_id: v.record_id, state, since: key === null ? null : since }
+    })
+  })
+  return out
+}
+
+// Tải nội dung các bản đã xuất bản (được phép xem) cùng chuỗi, đến revision đang đọc.
+function useVersions(history, upToRevision) {
+  const items = (history?.items || []).filter(i => i.role !== 'withdrawn' && (upToRevision == null || i.revision <= upToRevision))
+  const key = items.map(i => i.record_id).join(',')
+  const [state, setState] = useState({ key: '', versions: [] })
+  useEffect(() => {
+    if (!items.length) return
+    let active = true
+    Promise.all(items.map(i => fetchCached({ action: 'record', id: i.record_id }).catch(() => null)))
+      .then(rs => { if (active) setState({ key, versions: rs.filter(Boolean).sort((a, b) => a.revision - b.revision) }) })
+    return () => { active = false }
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  return state.key === key ? state.versions : []
+}
+
+const BlockContext = createContext(null)
+const BLOCK_STATE = {
+  CHANGED: { vi: 'Cập nhật', tone: 'blue' },
+  INHERITED: { vi: 'Giữ nguyên', tone: 'gray' },
+  INITIAL: { vi: 'Bản đầu', tone: 'gray' }
+}
+
+// Nhãn cạnh tiêu đề mục: khối này đổi ở bản đang đọc hay giữ nguyên từ bản trước.
+function BlockTag({ paths, standalone = false }) {
+  const ctx = useContext(BlockContext)
+  if (!ctx || ctx.count < 2) return null
+  const rows = paths.map(p => ctx.at[p]).filter(r => r && r.state !== 'ABSENT')
+  if (!rows.length) return null
+  const changed = rows.some(r => r.state === 'CHANGED')
+  const since = Math.max(...rows.map(r => r.since || 0))
+  const text = changed ? `Cập nhật ở R${ctx.revision}` : rows.every(r => r.state === 'INITIAL') ? `Từ R${ctx.revision}` : `Giữ nguyên từ R${since}`
+  const tag = <span className={`rl-block-tag ${changed ? 'changed' : ''}`} title={changed ? `Nội dung khác bản R${ctx.prevRevision}` : `Nội dung giống bản R${ctx.prevRevision}`}>{text}</span>
+  return standalone ? <div className="rl-block-tag-line">{tag}</div> : tag
+}
+
+function BlockProvider({ data, history, children }) {
+  const versions = useVersions(history, data?.revision)
+  const value = useMemo(() => {
+    if (!data || versions.length < 2) return null
+    const lin = blockLineage(versions)
+    const idx = versions.findIndex(v => v.record_id === data.record_id)
+    if (idx < 1) return null
+    return { count: versions.length, revision: data.revision, prevRevision: versions[idx - 1].revision,
+      at: Object.fromEntries(Object.entries(lin).map(([p, row]) => [p, row[idx]])) }
+  }, [data, versions])
+  return <BlockContext.Provider value={value}>{children}</BlockContext.Provider>
+}
+
+// Bảng khối × bản: đọc nhanh khối nào đổi ở từng revision.
+function BlockMatrix({ history }) {
+  const versions = useVersions(history, null)
+  if (versions.length < 2) return null
+  const lin = blockLineage(versions)
+  const changedCount = v => BLOCKS.filter(b => lin[b.path][v].state === 'CHANGED').length
+  return <>
+    <h2 className="rl-ptab-h">Khối nội dung theo từng bản</h2>
+    <p className="rl-muted rl-small">So sánh nội dung giữa các bản đã xuất bản để biết khối nào được cập nhật, khối nào giữ nguyên. Đây là đối chiếu hiển thị; manifest và phiên bản khối chính thức sẽ có ở giai đoạn sau.</p>
+    <div className="rl-table-wrap"><table className="rl-table rl-block-matrix">
+      <thead><tr><th scope="col">Khối</th>{versions.map((v, i) => <th key={v.record_id} scope="col">R{v.revision}{i > 0 && <small>{changedCount(i)} khối đổi</small>}</th>)}</tr></thead>
+      <tbody>{BLOCKS.map(b => <tr key={b.path}>
+        <th scope="row">{b.title}<small><code>{b.path}</code></small></th>
+        {lin[b.path].map((c, i) => <td key={i} className={`rl-bm-${c.state.toLowerCase()}`}>
+          {c.state === 'ABSENT' ? <span className="rl-muted">—</span> : c.state === 'CHANGED' ? <b>Cập nhật</b> : c.state === 'INITIAL' ? 'Bản đầu' : <span className="rl-muted">Giữ nguyên</span>}
+        </td>)}
+      </tr>)}</tbody>
+    </table></div>
+  </>
+}
+
+// Hồ sơ cổ phiếu (tài liệu 12): Tổng quan = bản hiện hành; Chuyên đề; Cập nhật; Lịch sử các bản từng xuất bản.
+const PROFILE_TABS = [
+  { id: 'tong-quan', title: 'Tổng quan' },
+  { id: 'chuyen-de', title: 'Chuyên đề' },
+  { id: 'cap-nhat', title: 'Cập nhật' },
+  { id: 'lich-su', title: 'Lịch sử' }
+]
+const ROLE = {
+  current: { vi: 'Hiện hành', tone: 'green' },
+  historical: { vi: 'Bản lịch sử', tone: 'gray' },
+  withdrawn: { vi: 'Đã thu hồi', tone: 'red' }
+}
+const recordHref = (item, id) => `/research/${encodeURIComponent(item.ticker)}/r/${id}?exchange=${encodeURIComponent(item.exchange || 'HOSE')}`
+const profileHref = (item, tab) => researchHref(item) + (tab && tab !== 'tong-quan' ? `&tab=${tab}` : '')
+
+function ProfileTabs({ item, tab, history }) {
+  const n = history?.items?.length || 0
+  return <nav className="rl-ptabs" aria-label="Hồ sơ cổ phiếu">
+    {PROFILE_TABS.map(t => <a key={t.id} href={profileHref(item, t.id)} className={tab === t.id ? 'active' : ''} aria-current={tab === t.id ? 'page' : undefined}>
+      {t.title}{t.id === 'lich-su' && n > 0 && <small>{n}</small>}
+    </a>)}
+  </nav>
+}
+
+// Dòng trạng thái: các mốc thời gian và độ phủ của bản đang đọc.
+function RecordStatus({ data, role }) {
+  const sc = data.payload?.scorecard || {}
+  return <div className="rl-status-line">
+    {role && <Badge map={ROLE} value={role} code={false} />}
+    <span>R{data.revision}</span>
+    <span>Thời điểm đánh giá <b>{dateText(data.as_of)}</b></span>
+    <span>Dữ liệu đến <b>{dateText(data.cutoff)}</b></span>
+    <span>Công bố <b>{dateText(data.published_at)}</b></span>
+    <span>Coverage <b>{num(sc.coverage ?? data.score_coverage, 0)}%</b> · Tin cậy <b>{CONFIDENCE[sc.confidence || data.score_confidence]?.vi || '—'}</b></span>
+  </div>
+}
+
+function ResearchPage({ ticker, exchange, tab }) {
+  const item = { ticker, exchange }
   const report = useApi({ action: 'research', ticker, exchange }, [ticker, exchange])
+  const history = useApi({ action: 'history', ticker, exchange }, [ticker, exchange])
   const crit = useApi({ action: 'criteria' }, [])
   const [size, setSize] = useReaderSize()
   const data = report.data
   const p = data?.payload || {}
   const sourceMap = useSourceMap(data)
   const title = data ? `${ticker} · ${data.company || ''}` : ticker
+  const overview = tab === 'tong-quan'
   useEffect(() => { document.title = `${title} · InvStock` }, [title])
-  useEffect(() => { upsertTab(researchTab({ ticker, exchange }, data?.company)) }, [ticker, exchange, data?.company])
+  useEffect(() => { upsertTab(researchTab(item, data?.company)) }, [ticker, exchange, data?.company]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sections = useMemo(() => researchSections(data), [data])
-  const active = useScrollSpy(sections.map(s => s.id), Boolean(data))
-  const progress = useReadingProgress(researchHref({ ticker, exchange }), title, Boolean(data))
+  const active = useScrollSpy(sections.map(s => s.id), Boolean(data) && overview)
+  const progress = useReadingProgress(researchHref(item), title, Boolean(data) && overview)
+  // Mã chưa có bản hiện hành (ví dụ vừa thu hồi) vẫn mở được tab Lịch sử nếu còn bản lịch sử được phép xem.
+  const hasHistory = (history.data?.items || []).some(i => i.role !== 'withdrawn')
 
   return <SourcesContext.Provider value={sourceMap}>
     <div className="rl rl-reader" style={{ '--reader-scale': size }}>
-      <TopBar progress={data ? progress : undefined}>
+      <TopBar progress={data && overview ? progress : undefined}>
         {data && <div className="rl-topbar-title"><b>{ticker}</b><span>{data.company}</span></div>}
-        {data && <SizeControl size={size} setSize={setSize} />}
+        {data && overview && <SizeControl size={size} setSize={setSize} />}
       </TopBar>
       <main className="rl-main">
         {report.loading && <><Skeleton rows={2} /><Skeleton rows={5} /></>}
         {report.error && <><a className="rl-back" href="/">← Thư viện</a>
-          <Empty tone="error">Không mở được báo cáo {ticker} ({report.error}). Báo cáo có thể chưa được xuất bản hoặc chỉ dành cho thành viên.</Empty></>}
+          <Empty tone="error">Không mở được bản hiện hành của {ticker} ({report.error}). Báo cáo có thể chưa được xuất bản, đã thu hồi, hoặc chỉ dành cho thành viên.</Empty>
+          {hasHistory && <><ProfileTabs item={item} tab="lich-su" history={history.data} /><HistoryTab item={item} history={history} currentId={null} /></>}</>}
         {data && <>
           <ReportHeader
             kicker={`Full Research · R${data.revision} · Dữ liệu đến ${dateText(data.cutoff)}`}
             title={<>{data.company || ticker} <span className="rl-ticker-pill">{ticker} · {data.exchange}</span></>}
             sub={`${data.sector || ''}${data.reporting_period ? ` · Kỳ báo cáo: ${data.reporting_period}` : ''}`} />
+          <ProfileTabs item={item} tab={tab} history={history.data} />
+          {overview && <>
+            <RecordStatus data={data} role="current" />
+            <KeyFacts data={data} p={p} />
+            <BlockProvider data={data} history={history.data}><div className="rl-layout">
+              <SectionNav sections={sections} active={active} />
+              <ResearchArticle data={data} criteria={crit.data?.criteria} />
+            </div></BlockProvider>
+          </>}
+          {tab === 'chuyen-de' && <TopicsTab ticker={ticker} />}
+          {tab === 'cap-nhat' && <UpdatesTab item={item} history={history} />}
+          {tab === 'lich-su' && <HistoryTab item={item} history={history} currentId={data.record_id} />}
+        </>}
+      </main>
+      {overview && <BackToTop />}
+      <Footer />
+    </div>
+  </SourcesContext.Provider>
+}
+
+function TopicsTab({ ticker }) {
+  return <section className="rl-ptab-body">
+    <Empty>Chưa có bài chuyên đề nào cho {ticker}.<br />
+      <span className="rl-small">Chuyên đề (Deep Dive, sở hữu, chất lượng lợi nhuận…) được duyệt và xuất bản riêng, hiển thị tại đây và tại đúng mục của bài. Chuyên đề không tự thay đổi định giá, điểm hay quyết định của bản hiện hành.</span>
+    </Empty>
+  </section>
+}
+
+function HistoryState({ history }) {
+  if (history.loading) return <Skeleton rows={3} />
+  if (history.error) return <Empty tone="error">Chưa tải được lịch sử xuất bản ({history.error}).</Empty>
+  if (!history.data?.items?.length) return <Empty>Chưa có lịch sử xuất bản.</Empty>
+  return null
+}
+
+// Dòng thời gian: các lần công bố, thay thế, thu hồi, kèm nhật ký thay đổi của từng bản.
+function UpdatesTab({ item, history }) {
+  const items = history.data?.items || []
+  const byId = Object.fromEntries(items.map(i => [i.record_id, i]))
+  const events = []
+  items.forEach(i => {
+    if (i.role === 'withdrawn') {
+      events.push({ at: i.withdrawn_at, kind: 'withdrawn', i })
+      return
+    }
+    events.push({ at: i.first_published_at, kind: 'published', i })
+    if (i.superseded_at) events.push({ at: i.superseded_at, kind: 'superseded', i, by: byId[i.superseded_by] })
+  })
+  events.sort((a, b) => String(b.at).localeCompare(String(a.at)))
+  return <section className="rl-ptab-body">
+    <HistoryState history={history} />
+    {events.length > 0 && <ol className="rl-publine">
+      {events.map((e, n) => <li key={n} className={`rl-pl-${e.kind}`}>
+        <time>{dateText(e.at)}</time>
+        {e.kind === 'published' && <div>
+          <b>Công bố R{e.i.revision}</b>{e.i.role === 'current' && <> <Badge map={ROLE} value="current" code={false} /></>}
+          <p className="rl-muted rl-small">Thời điểm đánh giá {dateText(e.i.as_of)} · Dữ liệu đến {dateText(e.i.cutoff)} · <Badge map={DECISION} value={e.i.decision_status} code={false} /> <Badge map={GATE} value={e.i.risk_gate} code={false} /> · Giá trị hợp lý {price(e.i.fair_value)}</p>
+          {Array.isArray(e.i.change_log) && e.i.change_log.length > 0 && <details className="rl-changelog"><summary>Nhật ký thay đổi ({e.i.change_log.length})</summary><BulletList items={e.i.change_log} /></details>}
+          <a href={recordHref(item, e.i.record_id)}>Đọc R{e.i.revision} →</a>
+        </div>}
+        {e.kind === 'superseded' && <div><b>R{e.i.revision} chuyển thành bản lịch sử</b>
+          <p className="rl-muted rl-small">{e.by ? `Được thay bằng R${e.by.revision}.` : 'Được thay bằng bản mới hơn.'}</p></div>}
+        {e.kind === 'withdrawn' && <div><b>R{e.i.revision} đã thu hồi</b><p className="rl-muted rl-small">Nội dung bản này không còn được hiển thị.</p></div>}
+      </li>)}
+    </ol>}
+  </section>
+}
+
+const DIFF_ROWS = [
+  { label: 'Quyết định', cell: d => <Badge map={DECISION} value={d.decision_status} code={false} />, key: d => d.decision_status },
+  { label: 'Cổng rủi ro', cell: d => <Badge map={GATE} value={d.risk_gate} code={false} />, key: d => d.risk_gate },
+  { label: 'Giá trị hợp lý', value: d => d.fair_value, fmt: price, delta: 'rel' },
+  { label: 'Giá tham chiếu', value: d => d.price, fmt: price, delta: 'rel', note: d => dateText(d.price_date) },
+  { label: 'Biên an toàn (MOS)', value: d => d.mos, fmt: pct, delta: 'pp' },
+  { label: 'Upside', value: d => d.upside, fmt: pct, delta: 'pp' },
+  { label: 'Điểm scorecard', value: d => d.official_total ?? d.normalized_score, fmt: score, delta: 'abs' },
+  { label: 'Coverage', value: d => d.score_coverage, fmt: v => `${num(v, 0)}%`, delta: 'abs' },
+  { label: 'Thời điểm đánh giá', cell: d => dateText(d.as_of), key: d => d.as_of },
+  { label: 'Dữ liệu đến (cutoff)', cell: d => dateText(d.cutoff), key: d => d.cutoff },
+  { label: 'Kỳ báo cáo', cell: d => d.reporting_period || '—', key: d => d.reporting_period },
+  { label: 'Rubric · schema', cell: d => `${d.scorecard_version || '—'} · ${d.schema_version || '—'}`, key: d => `${d.scorecard_version}|${d.schema_version}` }
+]
+function deltaText(r, a, b) {
+  const x = r.value(a), y = r.value(b)
+  if (!isNum(x) || !isNum(y)) return ''
+  if (r.delta === 'rel') return x === 0 ? '' : `${y >= x ? '+' : ''}${((y / x - 1) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`
+  if (r.delta === 'pp') return `${y >= x ? '+' : ''}${((y - x) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} điểm %`
+  return `${y >= x ? '+' : ''}${(y - x).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}`
+}
+
+// So sánh hai revision: tách các yếu tố, cảnh báo khi khác cutoff/kỳ/rubric (tài liệu 12, mục 9).
+function RevisionDiff({ a, b }) {
+  const warn = []
+  if (a.scorecard_version !== b.scorecard_version || a.schema_version !== b.schema_version) warn.push('Hai bản dùng rubric hoặc schema khác nhau: điểm số không so sánh trực tiếp được.')
+  if (a.reporting_period !== b.reporting_period) warn.push('Hai bản khác kỳ báo cáo.')
+  if (a.cutoff !== b.cutoff) warn.push('Hai bản khác ngày dữ liệu (cutoff).')
+  else warn.push('Hai bản cùng cutoff: chênh lệch đến từ giả định, phương pháp, chất lượng nguồn hoặc tiêu chuẩn chấm điểm, không phải dữ liệu thị trường mới.')
+  return <div className="rl-rev-diff">
+    <div className="rl-table-wrap"><table className="rl-table">
+      <thead><tr><th /><th scope="col">R{a.revision}</th><th scope="col">R{b.revision}</th><th scope="col">Thay đổi</th></tr></thead>
+      <tbody>{DIFF_ROWS.map(r => {
+        const changed = r.key ? r.key(a) !== r.key(b) : deltaText(r, a, b) && r.value(a) !== r.value(b)
+        return <tr key={r.label} className={changed ? 'rl-changed' : ''}>
+          <th scope="row">{r.label}</th>
+          {[a, b].map((d, i) => <td key={i} className={r.value ? 'num' : ''}>{r.cell ? r.cell(d) : r.fmt(r.value(d))}{r.note && <small className="rl-muted"> · {r.note(d)}</small>}</td>)}
+          <td className="num">{r.value ? deltaText(r, a, b) : (changed ? 'Khác' : '—')}</td>
+        </tr>
+      })}</tbody>
+    </table></div>
+    <ul className="rl-diff-notes">{warn.map((w, i) => <li key={i}>{w}</li>)}</ul>
+    <p className="rl-muted rl-small">Coverage thấp hơn không có nghĩa doanh nghiệp xấu đi: có thể do tiêu chuẩn bằng chứng chặt hơn. Giá trị lịch sử lấy nguyên từ từng bản, không tính lại theo giá hiện tại.</p>
+  </div>
+}
+
+function HistoryTab({ item, history, currentId }) {
+  const items = history.data?.items || []
+  const readable = items.filter(i => i.role !== 'withdrawn')
+  const [pick, setPick] = useState(null)
+  const sel = pick || readable.slice(-2).map(i => i.record_id)
+  const pair = readable.filter(i => sel.includes(i.record_id))
+  const toggle = id => {
+    const cur = sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id].slice(-2)
+    setPick(cur)
+  }
+  return <section className="rl-ptab-body">
+    <HistoryState history={history} />
+    {items.length > 0 && <div className="rl-table-wrap"><table className="rl-table rl-history">
+      <thead><tr><th scope="col">Bản</th><th scope="col">Vai trò</th><th scope="col">Thời điểm đánh giá</th><th scope="col">Công bố</th><th scope="col">Quyết định</th><th scope="col" className="num">Giá trị hợp lý</th><th scope="col" className="num">Coverage</th><th scope="col">So sánh</th></tr></thead>
+      <tbody>{[...items].reverse().map(i => i.role === 'withdrawn'
+        ? <tr key={i.record_id} className="rl-withdrawn"><th scope="row">R{i.revision}</th><td><Badge map={ROLE} value="withdrawn" code={false} /></td><td colSpan={6} className="rl-muted">Đã thu hồi ngày {dateText(i.withdrawn_at)}. Nội dung không còn hiển thị.</td></tr>
+        : <tr key={i.record_id}>
+          <th scope="row"><a href={i.record_id === currentId ? profileHref(item) : recordHref(item, i.record_id)}>R{i.revision}</a><small>Dữ liệu đến {dateText(i.cutoff)}</small></th>
+          <td><Badge map={ROLE} value={i.role} code={false} />{i.superseded_at && <small className="rl-muted rl-block">Thay thế {dateText(i.superseded_at)}</small>}</td>
+          <td>{dateText(i.as_of)}</td>
+          <td>{dateText(i.first_published_at)}</td>
+          <td><Badge map={DECISION} value={i.decision_status} code={false} /> <Badge map={GATE} value={i.risk_gate} code={false} /></td>
+          <td className="num">{price(i.fair_value)}</td>
+          <td className="num">{num(i.score_coverage, 0)}%</td>
+          <td><label className="rl-check"><input type="checkbox" checked={sel.includes(i.record_id)} onChange={() => toggle(i.record_id)} disabled={readable.length < 2} /> Chọn</label></td>
+        </tr>)}</tbody>
+    </table></div>}
+    {pair.length === 2 && <><h2 className="rl-ptab-h">So sánh R{pair[0].revision} và R{pair[1].revision}</h2><RevisionDiff a={pair[0]} b={pair[1]} /></>}
+    <BlockMatrix history={history.data} />
+    {readable.length === 1 && <p className="rl-muted rl-small">Mới có một bản được xuất bản. Khi có bản mới, bản cũ vẫn đọc được tại đây.</p>}
+  </section>
+}
+
+// Đường dẫn cố định một bản theo record_id. Bản lịch sử luôn có cảnh báo, không tự chuyển sang bản hiện hành.
+function RecordPage({ ticker, exchange, id }) {
+  const item = { ticker, exchange }
+  const report = useApi({ action: 'record', id }, [id])
+  const history = useApi({ action: 'history', ticker, exchange }, [ticker, exchange])
+  const crit = useApi({ action: 'criteria' }, [])
+  const [size, setSize] = useReaderSize()
+  const data = report.data
+  const p = data?.payload || {}
+  const sourceMap = useSourceMap(data)
+  const historical = data && data.role !== 'current'
+  const title = data ? `${data.ticker} R${data.revision}${historical ? ' (lịch sử)' : ''}` : `${ticker} · bản lưu`
+  const path = recordHref(item, id)
+  useEffect(() => { document.title = `${title} · InvStock` }, [title])
+  useEffect(() => { if (data) upsertTab({ path, kind: 'record', title: `${data.ticker} R${data.revision}`, sub: historical ? 'Bản lịch sử' : 'Bản hiện hành' }) }, [path, data?.revision, historical]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sections = useMemo(() => researchSections(data), [data])
+  const active = useScrollSpy(sections.map(s => s.id), Boolean(data))
+  const progress = useReadingProgress(path, title, Boolean(data))
+  const wrongTicker = data && (data.ticker !== ticker || data.exchange !== exchange)
+
+  return <SourcesContext.Provider value={sourceMap}>
+    <div className="rl rl-reader" style={{ '--reader-scale': size }}>
+      <TopBar progress={data ? progress : undefined}>
+        {data && <div className="rl-topbar-title"><b>{data.ticker} · R{data.revision}</b><span>{historical ? 'Bản lịch sử' : data.company}</span></div>}
+        {data && <SizeControl size={size} setSize={setSize} />}
+      </TopBar>
+      <main className="rl-main">
+        {report.loading && <><Skeleton rows={2} /><Skeleton rows={5} /></>}
+        {report.error && <><a className="rl-back" href={profileHref(item, 'lich-su')}>← Hồ sơ {ticker}</a>
+          <Empty tone="error">{report.error === 'record_withdrawn' ? 'Bản này đã được thu hồi, nội dung không còn hiển thị.' : `Không mở được bản này (${report.error}). Bản có thể chưa được xuất bản hoặc chỉ dành cho thành viên.`}</Empty></>}
+        {wrongTicker && <Empty tone="error">Mã bản ghi không khớp đường dẫn. <a href={recordHref(data, id)}>Mở đúng địa chỉ</a></Empty>}
+        {data && !wrongTicker && <>
+          {historical
+            ? <div className="rl-banner warn" role="note">
+                <b>Không phải đánh giá hiện hành.</b> Đây là bản R{data.revision} (thời điểm đánh giá {dateText(data.as_of)}){data.superseded_at ? `, đã được thay thế ngày ${dateText(data.superseded_at)}` : ''}. Định giá, điểm và quyết định trong bản này chỉ có giá trị tham khảo lịch sử.
+                {data.current_record_id ? <> <a href={profileHref(item)}>Mở bản hiện hành →</a></> : <> Hiện chưa có bản hiện hành bạn được phép xem.</>}
+              </div>
+            : <div className="rl-banner" role="note">Đây là bản hiện hành của {data.ticker}. <a href={profileHref(item)}>Mở hồ sơ {data.ticker} →</a></div>}
+          <ReportHeader back={<a className="rl-back" href={profileHref(item, 'lich-su')}>← Lịch sử {data.ticker}</a>}
+            kicker={`Full Research · R${data.revision} · Dữ liệu đến ${dateText(data.cutoff)}`}
+            title={<>{data.company || ticker} <span className="rl-ticker-pill">{data.ticker} · {data.exchange}</span></>}
+            sub={`${data.sector || ''}${data.reporting_period ? ` · Kỳ báo cáo: ${data.reporting_period}` : ''}`} />
+          <RecordStatus data={data} role={data.role} />
           <KeyFacts data={data} p={p} />
-          <div className="rl-layout">
+          <BlockProvider data={data} history={history.data}><div className="rl-layout">
             <SectionNav sections={sections} active={active} />
             <ResearchArticle data={data} criteria={crit.data?.criteria} />
-          </div>
+          </div></BlockProvider>
         </>}
       </main>
       <BackToTop />
@@ -1511,11 +1859,15 @@ function LibraryRoutes() {
   const path = url.pathname.split('/').filter(Boolean)
   const exchange = (url.searchParams.get('exchange') || 'HOSE').toUpperCase()
   const ticker = path[0] === 'research' && path[1] ? decodeURIComponent(path[1]).toUpperCase() : ''
+  const recordId = ticker && path[2] === 'r' && /^[0-9a-f-]{36}$/i.test(path[3] || '') ? path[3].toLowerCase() : ''
+  const tabParam = url.searchParams.get('tab')
+  const tab = PROFILE_TABS.some(t => t.id === tabParam) ? tabParam : 'tong-quan'
   // Chuẩn hóa địa chỉ bài để tab nhận ra cùng một bài (ví dụ /research/fpt → /research/FPT?exchange=HOSE).
-  const canonical = ticker ? researchHref({ ticker, exchange }) : ''
+  const canonical = recordId ? recordHref({ ticker, exchange }, recordId) : ticker ? profileHref({ ticker, exchange }, tab) : ''
   useEffect(() => { if (canonical && canonical !== loc) navigate(canonical + window.location.hash, { replace: true }) }, [canonical, loc])
   useEffect(() => { if (path[0] !== 'compare' && path.length) patchTabs({ last: loc }) }, [loc]) // eslint-disable-line react-hooks/exhaustive-deps
-  if (ticker) return <ResearchPage key={canonical} ticker={ticker} exchange={exchange} />
+  if (recordId) return <RecordPage key={canonical} ticker={ticker} exchange={exchange} id={recordId} />
+  if (ticker) return <ResearchPage key={researchHref({ ticker, exchange })} ticker={ticker} exchange={exchange} tab={tab} />
   if (path[0] === 'screening' && path[1]) return <ScreeningPage key={loc} lineageKey={decodeURIComponent(path[1])} />
   if (path[0] === 'compare') return <ComparePage search={url.search} />
   if (path[0] === 'thuat-ngu') return <GlossaryPage key={url.pathname} slug={path[1] ? decodeURIComponent(path[1]) : ''} TopBar={TopBar} Footer={Footer} />
