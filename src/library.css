@@ -169,7 +169,7 @@ a.rl-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow
 .rl-kf .rl-badge{align-self:flex-start}
 .rl-kf>small .rl-badge{font-size:11px;padding:0 7px}
 
-.rl-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:40px;margin-top:28px;align-items:start}
+.rl-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:32px;margin-top:28px;align-items:start}
 .rl-toc{position:sticky;top:76px}
 .rl-toc-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;padding-left:12px}
 .rl-toc-list{display:flex;flex-direction:column;border-left:2px solid var(--line)}
@@ -177,12 +177,12 @@ a.rl-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow
 .rl-toc-list a:hover{color:var(--accent)}
 .rl-toc-list a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
 
-.rl-article{min-width:0;max-width:820px;font-size:calc(15.5px * var(--reader-scale))}
+.rl-article{min-width:0;font-size:calc(15.5px * var(--reader-scale))}
 .rl-section{padding:4px 0 34px;margin-bottom:30px;border-bottom:1px solid var(--line);scroll-margin-top:84px}
 .rl-section:last-child{border-bottom:0}
 .rl-section>h2{font-size:calc(22px * var(--reader-scale));font-weight:700;margin-bottom:16px}
 .rl-section h3{font-size:calc(15.5px * var(--reader-scale));font-weight:700;margin-bottom:8px}
-.rl-prose p{line-height:1.75;color:var(--text);max-width:70ch}
+.rl-prose p{line-height:1.75;color:var(--text);max-width:82ch}
 .rl-note{font-size:.9em;color:var(--text-2);margin:10px 0!important}
 .rl-panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
 .rl-panel.tone-green-soft{border-top:3px solid var(--green)}
