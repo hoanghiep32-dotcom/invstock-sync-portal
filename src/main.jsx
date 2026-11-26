@@ -55,7 +55,7 @@ function SignIn() {
         <button className="button primary" disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Đăng nhập'}</button>
       </form>
       {error && <div className="error">{error}</div>}
-      <div className="hint"><a href="/">← Về thư viện</a></div>
+      <div className="hint"><a href={libraryReturn().path}>{libraryReturn().label}</a></div>
     </section>
   </main>
 }
@@ -189,6 +189,16 @@ function RecordsPanel({ session, refreshKey }) {
   </section>
 }
 
+// Quay lại đúng trang thư viện đang đọc dở (bài và tab đang mở được lưu trong trình duyệt).
+function libraryReturn() {
+  try {
+    const v = JSON.parse(localStorage.getItem('invstock_tabs_v1') || '{}')
+    const path = typeof v.last === 'string' && v.last.startsWith('/') && !v.last.startsWith('/admin') ? v.last : '/'
+    const open = Array.isArray(v.tabs) ? v.tabs.length : 0
+    return { path, label: open ? `← Thư viện · ${open} bài đang mở` : '← Thư viện' }
+  } catch { return { path: '/', label: '← Thư viện' } }
+}
+
 function Admin() {
   const [session, setSession] = useState(null)
   const [ready, setReady] = useState(false)
@@ -205,7 +215,7 @@ function Admin() {
       <div><div className="eyebrow">INVSTOCK SYNC PORTAL · CHUẨN v2.0.0</div><h1>Đồng bộ & xuất bản</h1></div>
       <div className="admin-navigation">
         <span className="account"><span className="online" />{session.user.email}</span>
-        <a className="button secondary" href="/">Thư viện</a>
+        <a className="button secondary" href={libraryReturn().path}>{libraryReturn().label}</a>
         <button className="button subtle" onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
       </div>
     </header>

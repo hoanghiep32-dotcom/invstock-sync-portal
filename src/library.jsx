@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './style.css'
 import { supabase, SUPABASE_URL, SUPABASE_KEY } from './supabaseClient.js'
 
@@ -31,16 +31,182 @@ async function readApi(params) {
   return data
 }
 
+// Bộ nhớ đệm trong phiên: chuyển qua lại giữa các tab không phải tải lại bài.
+const CACHE_MS = 5 * 60 * 1000
+const apiCache = new Map()
+const cacheKey = params => JSON.stringify(params)
+const cachedData = params => {
+  const c = apiCache.get(cacheKey(params))
+  return c && Date.now() - c.at < CACHE_MS ? c.data : null
+}
+function fetchCached(params) {
+  const hit = cachedData(params)
+  if (hit) return Promise.resolve(hit)
+  return readApi(params).then(data => { apiCache.set(cacheKey(params), { data, at: Date.now() }); return data })
+}
+
 function useApi(params, deps) {
-  const [state, setState] = useState({ data: null, loading: true, error: '' })
+  const [state, setState] = useState(() => {
+    const hit = cachedData(params)
+    return hit ? { data: hit, loading: false, error: '' } : { data: null, loading: true, error: '' }
+  })
   useEffect(() => {
     let active = true
+    const hit = cachedData(params)
+    if (hit) { setState({ data: hit, loading: false, error: '' }); return }
     setState({ data: null, loading: true, error: '' })
-    readApi(params)
+    fetchCached(params)
       .then(data => { if (active) setState({ data, loading: false, error: '' }) })
       .catch(err => { if (active) setState({ data: null, loading: false, error: err.message }) })
     return () => { active = false }
   }, deps) // eslint-disable-line react-hooks/exhaustive-deps
+  return state
+}
+
+/* ---------- Điều hướng trong thư viện (không tải lại trang) ---------- */
+
+const NAV_EVENT = 'rl:navigate'
+const currentPath = () => window.location.pathname + window.location.search
+
+function navigate(to, { replace = false } = {}) {
+  if (to === currentPath() + window.location.hash) return
+  window.history[replace ? 'replaceState' : 'pushState'](null, '', to)
+  window.dispatchEvent(new Event(NAV_EVENT))
+}
+
+function useLocationPath() {
+  const [path, setPath] = useState(currentPath)
+  useEffect(() => {
+    const on = () => setPath(currentPath())
+    window.addEventListener('popstate', on)
+    window.addEventListener(NAV_EVENT, on)
+    return () => { window.removeEventListener('popstate', on); window.removeEventListener(NAV_EVENT, on) }
+  }, [])
+  return path
+}
+
+// Bắt các liên kết nội bộ để mở bài ngay trong thư viện. /admin vẫn tải trang bình thường;
+// Ctrl/⌘ + click hoặc chuột giữa vẫn mở tab trình duyệt mới như thường.
+function useLinkInterceptor() {
+  useEffect(() => {
+    const onClick = e => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const a = e.target.closest?.('a[href]')
+      if (!a || a.target || a.hasAttribute('download')) return
+      const href = a.getAttribute('href')
+      if (!href || href.startsWith('#')) return
+      const url = new URL(a.href, window.location.href)
+      if (url.origin !== window.location.origin || url.pathname.startsWith('/admin')) return
+      if (url.pathname + url.search === currentPath() && url.hash) return
+      e.preventDefault()
+      navigate(url.pathname + url.search + url.hash)
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [])
+}
+
+/* ---------- Nhớ vị trí đọc của từng trang ---------- */
+
+const SCROLL_KEY = 'invstock_scroll_v1'
+const scrollState = { key: null, ready: false }
+
+function saveScroll(key, y) {
+  const map = storage.get(SCROLL_KEY, {}) || {}
+  map[key] = { y: Math.round(y), at: Date.now() }
+  const keys = Object.keys(map).sort((a, b) => (map[b].at || 0) - (map[a].at || 0))
+  keys.slice(40).forEach(k => { delete map[k] })
+  storage.set(SCROLL_KEY, map)
+}
+
+function useScrollSaver() {
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
+    let timer = 0
+    const on = () => {
+      if (!scrollState.ready || timer) return
+      const key = scrollState.key
+      timer = setTimeout(() => { timer = 0; if (scrollState.ready && scrollState.key === key) saveScroll(key, window.scrollY) }, 200)
+    }
+    window.addEventListener('scroll', on, { passive: true })
+    return () => { clearTimeout(timer); window.removeEventListener('scroll', on) }
+  }, [])
+}
+
+// Trang gọi hook này với khóa riêng; khi nội dung sẵn sàng sẽ cuộn về chỗ đang đọc dở.
+function useScrollMemory(key, ready) {
+  useLayoutEffect(() => {
+    scrollState.key = key; scrollState.ready = false
+    if (!window.location.hash) window.scrollTo(0, 0)
+  }, [key])
+  useEffect(() => {
+    if (!ready || scrollState.key !== key) return
+    const hash = decodeURIComponent(window.location.hash.slice(1))
+    const saved = (storage.get(SCROLL_KEY, {}) || {})[key]
+    requestAnimationFrame(() => {
+      if (hash && document.getElementById(hash)) document.getElementById(hash).scrollIntoView()
+      else window.scrollTo({ top: Number(saved?.y) || 0, behavior: 'instant' })
+      scrollState.ready = true
+    })
+  }, [key, ready])
+}
+
+/* ---------- Tab bài đang mở (lưu trong trình duyệt) ---------- */
+
+const TABS_KEY = 'invstock_tabs_v1'
+const TABS_EVENT = 'rl:tabs'
+const MAX_TABS = 8
+
+function readTabs() {
+  const v = storage.get(TABS_KEY, null) || {}
+  return {
+    tabs: Array.isArray(v.tabs) ? v.tabs.filter(t => t && typeof t.path === 'string' && t.path.startsWith('/')) : [],
+    home: typeof v.home === 'string' && v.home.startsWith('/') ? v.home : '/',
+    last: typeof v.last === 'string' && v.last.startsWith('/') ? v.last : '/'
+  }
+}
+function writeTabs(next) {
+  storage.set(TABS_KEY, next)
+  window.dispatchEvent(new Event(TABS_EVENT))
+}
+function patchTabs(patch) {
+  const s = readTabs()
+  if (Object.entries(patch).every(([k, v]) => s[k] === v)) return
+  writeTabs({ ...s, ...patch })
+}
+function upsertTab(tab) {
+  const s = readTabs()
+  const i = s.tabs.findIndex(t => t.path === tab.path)
+  if (i >= 0) {
+    const merged = { ...s.tabs[i], ...tab }
+    if (JSON.stringify(merged) === JSON.stringify(s.tabs[i])) return
+    s.tabs[i] = merged
+  } else {
+    s.tabs.push(tab)
+    while (s.tabs.length > MAX_TABS) {
+      const drop = s.tabs.findIndex(t => t.path !== currentPath())
+      s.tabs.splice(drop < 0 ? 0 : drop, 1)
+    }
+  }
+  writeTabs(s)
+}
+function closeTab(path) {
+  const s = readTabs()
+  const i = s.tabs.findIndex(t => t.path === path)
+  if (i < 0) return
+  s.tabs.splice(i, 1)
+  writeTabs(s)
+  if (path === currentPath()) navigate((s.tabs[i] || s.tabs[i - 1])?.path || s.home)
+}
+function useTabs() {
+  const [state, setState] = useState(readTabs)
+  useEffect(() => {
+    const on = () => setState(readTabs())
+    const onStorage = e => { if (e.key === TABS_KEY) on() }
+    window.addEventListener(TABS_EVENT, on)
+    window.addEventListener('storage', onStorage)
+    return () => { window.removeEventListener(TABS_EVENT, on); window.removeEventListener('storage', onStorage) }
+  }, [])
   return state
 }
 
@@ -132,12 +298,15 @@ function Badge({ map, value, code = true, className = '' }) {
 /* ---------- Nguồn tham khảo ---------- */
 
 const SourcesContext = createContext({})
+// Tiền tố id để một bài có thể hiển thị nhiều lần trên cùng trang (chế độ so sánh).
+const IdPrefix = createContext('')
 
 function Refs({ ids }) {
   const sources = useContext(SourcesContext)
+  const prefix = useContext(IdPrefix)
   if (!ids?.length) return null
   return <span className="rl-refs">{ids.map(id => (
-    <a key={id} href={`#src-${id}`} className="rl-ref" title={sources[id]?.title || id}>{id}</a>
+    <a key={id} href={`#${prefix}src-${id}`} className="rl-ref" title={sources[id]?.title || id}>{id}</a>
   ))}</span>
 }
 
@@ -158,8 +327,40 @@ function TopBar({ children, progress }) {
       <div className="rl-topbar-mid">{children}</div>
       <nav className="rl-topbar-nav"><a href="/admin">Admin</a></nav>
     </div>
+    <TabStrip />
     {progress !== undefined && <div className="rl-progress" style={{ transform: `scaleX(${progress})` }} />}
   </header>
+}
+
+const HomeIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5" /><path d="M6.5 10v9h11v-9" /></svg>
+
+// Hàng tab: Thư viện luôn ở đầu, sau đó là các bài đang mở. Đóng tab không xóa bài, chỉ bỏ khỏi hàng.
+function TabStrip() {
+  const { tabs, home } = useTabs()
+  const here = currentPath()
+  const onCompare = window.location.pathname === '/compare'
+  const research = tabs.filter(t => t.kind === 'research' && t.ticker)
+  const stripRef = useRef(null)
+  useEffect(() => {
+    const el = stripRef.current?.querySelector('.rl-tab.active')
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [here, tabs.length])
+  if (!tabs.length && !onCompare) return null
+  const isHome = !tabs.some(t => t.path === here) && !onCompare
+  return <div className="rl-tabstrip">
+    <div className="rl-tabstrip-inner" ref={stripRef} role="tablist" aria-label="Bài đang mở">
+      <a href={home} className={`rl-tab rl-tab-home ${isHome ? 'active' : ''}`} role="tab" aria-selected={isHome} title="Thư viện"><HomeIcon /><span>Thư viện</span></a>
+      {tabs.map(t => <div key={t.path} className={`rl-tab ${t.path === here ? 'active' : ''}`} role="tab" aria-selected={t.path === here}
+        onAuxClick={e => { if (e.button === 1) { e.preventDefault(); closeTab(t.path) } }}>
+        <a href={t.path} title={[t.title, t.sub].filter(Boolean).join(' · ')}>
+          <b>{t.title}</b>{t.sub && <span>{t.sub}</span>}
+        </a>
+        <button type="button" onClick={() => closeTab(t.path)} aria-label={`Đóng ${t.title}`} title="Đóng tab">×</button>
+      </div>)}
+      {(research.length >= 2 || onCompare) && <a href={compareHref(research.slice(-3))} className={`rl-tab rl-tab-compare ${onCompare ? 'active' : ''}`} role="tab" aria-selected={onCompare}
+        title="So sánh các bài đang mở"><span aria-hidden="true">⇆</span><span>So sánh</span></a>}
+    </div>
+  </div>
 }
 
 function Footer() {
@@ -208,11 +409,26 @@ function writeQuery(state) {
   if (state.sort !== 'recent') q.set('sort', state.sort)
   if (state.view !== 'cards') q.set('view', state.view)
   const s = q.toString()
-  window.history.replaceState(null, '', s ? `/?${s}` : '/')
+  const path = s ? `/?${s}` : '/'
+  if (path !== currentPath()) window.history.replaceState(null, '', path)
+  patchTabs({ home: path, last: path })
 }
 
 const researchHref = item => `/research/${encodeURIComponent(item.ticker)}?exchange=${encodeURIComponent(item.exchange || 'HOSE')}`
 const screeningHref = item => `/screening/${encodeURIComponent(item.lineage_key)}`
+const compareHref = items => `/compare?items=${items.map(i => `${i.ticker}.${i.exchange || 'HOSE'}`).join(',')}`
+const researchTab = (item, company) => ({ path: researchHref(item), kind: 'research', ticker: item.ticker, exchange: item.exchange || 'HOSE', title: item.ticker, sub: company || item.company || 'Full Research' })
+
+// Nút mở bài vào tab mà không rời trang hiện tại, để gom 2–3 bài rồi đọc/so sánh.
+function OpenTabButton({ item, compact = false }) {
+  const { tabs } = useTabs()
+  const open = tabs.some(t => t.path === researchHref(item))
+  return <button type="button" className={`rl-open-tab ${open ? 'is-open' : ''} ${compact ? 'compact' : ''}`}
+    title={open ? 'Bài này đang mở trong tab' : 'Mở trong tab, vẫn ở lại trang này'}
+    onClick={e => { e.preventDefault(); e.stopPropagation(); if (!open) upsertTab(researchTab(item)) }}>
+    {open ? '✓ Đang mở' : '+ Mở tab'}
+  </button>
+}
 
 function ScoreMeter({ value, provisional }) {
   const v = isNum(value) ? Math.max(0, Math.min(100, value)) : null
@@ -241,15 +457,15 @@ function ResearchCard({ item }) {
     </dl>
     <div className="rl-card-foot">
       <span>Dữ liệu đến {dateText(item.cutoff)} · R{item.revision}{item.visibility === 'members' ? ' · Thành viên' : ''}</span>
-      <span className="rl-card-cta">Đọc →</span>
+      <span className="rl-card-actions"><OpenTabButton item={item} /><span className="rl-card-cta">Đọc →</span></span>
     </div>
   </a>
 }
 
 function ResearchTable({ items }) {
   return <div className="rl-table-wrap"><table className="rl-table rl-table-list">
-    <thead><tr><th>Mã</th><th>Công ty</th><th>Quyết định</th><th>Rủi ro</th><th className="num">Điểm</th><th className="num">Giá trị HL</th><th className="num">MOS</th><th>Dữ liệu đến</th></tr></thead>
-    <tbody>{items.map(item => <tr key={item.lineage_key} onClick={() => { window.location.href = researchHref(item) }}>
+    <thead><tr><th>Mã</th><th>Công ty</th><th>Quyết định</th><th>Rủi ro</th><th className="num">Điểm</th><th className="num">Giá trị HL</th><th className="num">MOS</th><th>Dữ liệu đến</th><th><span className="rl-sr">Mở tab</span></th></tr></thead>
+    <tbody>{items.map(item => <tr key={item.lineage_key} onClick={() => navigate(researchHref(item))}>
       <td><a href={researchHref(item)} className="rl-strong">{item.ticker}</a><small className="rl-muted"> {item.exchange}</small></td>
       <td>{item.company}<div className="rl-muted rl-small">{item.sector}</div></td>
       <td><Badge map={DECISION} value={item.decision_status} code={false} /></td>
@@ -258,6 +474,7 @@ function ResearchTable({ items }) {
       <td className="num">{price(item.fair_value)}</td>
       <td className="num">{pct(item.mos)}</td>
       <td>{dateText(item.cutoff)}</td>
+      <td><OpenTabButton item={item} compact /></td>
     </tr>)}</tbody>
   </table></div>
 }
@@ -299,6 +516,7 @@ function Home() {
   const set = patch => setF(prev => ({ ...prev, ...patch }))
   useEffect(() => { writeQuery(f) }, [f])
   useEffect(() => { document.title = 'Thư viện nghiên cứu · InvStock' }, [])
+  useScrollMemory('home', !loading)
   useEffect(() => {
     const onKey = e => {
       if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'SELECT') {
@@ -415,12 +633,7 @@ function useReadingProgress(path, title, ready) {
     window.addEventListener('scroll', update, { passive: true })
     return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', update) }
   }, [path, title, ready])
-  useEffect(() => {
-    if (!ready || window.location.hash) return
-    const saved = storage.get(READING_PROGRESS_KEY)
-    if (saved?.path === path && Number(saved.scrollY) > 200)
-      requestAnimationFrame(() => window.scrollTo({ top: Number(saved.scrollY), behavior: 'instant' }))
-  }, [ready, path])
+  useScrollMemory(path, ready)
   return progress
 }
 
@@ -485,7 +698,8 @@ function BackToTop() {
 }
 
 function ReportSection({ id, title, kicker, children }) {
-  return <section className="rl-section" id={id}>
+  const prefix = useContext(IdPrefix)
+  return <section className="rl-section" id={prefix + id}>
     {kicker && <div className="rl-kicker">{kicker}</div>}
     <h2>{title}</h2>
     {children}
@@ -801,9 +1015,10 @@ function ModuleBody({ m, showGaps = true }) {
 }
 
 function Chapter({ modules, keys }) {
+  const prefix = useContext(IdPrefix)
   const present = keys.filter(k => modules?.[k])
   if (!present.length) return null
-  return present.map(k => <div className="rl-sub" id={`module-${k}`} key={k}>
+  return present.map(k => <div className="rl-sub" id={`${prefix}module-${k}`} key={k}>
     {present.length > 1 && <h3 className="rl-sub-title">{MODULES[k] || titleCase(k)}</h3>}
     <ModuleBody m={modules[k]} />
   </div>)
@@ -838,8 +1053,9 @@ function MonitoringBlock({ items }) {
 const TIER = { 1: 'Bậc 1 · Công bố chính thức', 2: 'Bậc 2', 3: 'Bậc 3', 4: 'Bậc 4 · Công ty chứng khoán', 5: 'Bậc 5' }
 
 function SourcesBlock({ sources }) {
+  const prefix = useContext(IdPrefix)
   if (!sources?.length) return <p className="rl-muted">Không có nguồn.</p>
-  return <ol className="rl-sources">{sources.map(s => <li key={s.id} id={`src-${s.id}`}>
+  return <ol className="rl-sources">{sources.map(s => <li key={s.id} id={`${prefix}src-${s.id}`}>
     <span className="rl-source-id">{s.id}</span>
     <div>
       <div className="rl-source-title">{/^https?:\/\//i.test(s.locator) ? <a href={s.locator} target="_blank" rel="noreferrer">{s.title}</a> : s.title}</div>
@@ -867,35 +1083,102 @@ const CHAPTERS = [
 ]
 const PLACED = new Set(['executive_summary', 'decision_monitoring', 'valuation_engine', 'scorecard_risk', 'catalysts_expectations', ...CHAPTERS.flatMap(c => c.keys)])
 
+// Danh sách mục của một bài, dùng cho mục lục và cho ô "Đi tới mục" trong chế độ so sánh.
+function researchSections(data) {
+  if (!data) return []
+  const p = data.payload || {}
+  const mods = p.modules || {}
+  const other = Object.keys(mods).some(k => !PLACED.has(k))
+  return [
+    { id: 'tom-tat', title: 'Tóm tắt', show: true },
+    { id: 'luan-diem', title: 'Luận điểm', show: !!p.decision },
+    { id: 'dinh-gia', title: 'Định giá', show: !!p.valuation || !!mods.valuation_engine },
+    ...CHAPTERS.map(c => ({ id: c.id, title: c.title, show: c.keys.some(k => mods[k]) })),
+    { id: 'khac', title: 'Phân tích khác', show: other },
+    { id: 'scorecard', title: 'Scorecard', show: !!p.scorecard },
+    { id: 'rui-ro', title: 'Rủi ro', show: !!p.risk },
+    { id: 'catalyst', title: 'Catalyst và theo dõi', show: !!p.catalysts?.length || !!p.monitoring?.length || !!mods.catalysts_expectations },
+    { id: 'phan-bien', title: 'Phản biện', show: !!p.core10 || !!p.committee },
+    { id: 'nguon', title: 'Nguồn', show: true }
+  ].filter(s => s.show).map(({ id, title }) => ({ id, title }))
+}
+
+// Nội dung bài research; dùng chung cho trang đọc và các khung đọc song song.
+function ResearchArticle({ data, criteria }) {
+  const p = data.payload || {}
+  const mods = p.modules || {}
+  const otherKeys = Object.keys(mods).filter(k => !PLACED.has(k))
+  return <article className="rl-article">
+    <ReportSection id="tom-tat" title="Tóm tắt">
+      {mods.executive_summary ? <div className="rl-summary">
+        <ModuleBody m={mods.executive_summary} />
+      </div> : <p className="rl-muted">Không có tóm tắt.</p>}
+    </ReportSection>
+
+    {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư">
+      {mods.decision_monitoring?.analysis && <Prose text={mods.decision_monitoring.analysis} />}
+      <ThesisBlock decision={p.decision} />
+      {mods.decision_monitoring?.metrics?.length > 0 && <MetricsView metrics={mods.decision_monitoring.metrics} />}
+      <Gaps items={mods.decision_monitoring?.gaps} />
+    </ReportSection>}
+
+    {(p.valuation || mods.valuation_engine) && <ReportSection id="dinh-gia" title="Định giá" kicker={`Đơn vị: ${p.valuation?.currency || 'VND'}/cổ phiếu`}>
+      <ValuationBlock v={p.valuation} />
+      {mods.valuation_engine && <div className="rl-sub">
+        <h3 className="rl-sub-title">Mô hình định giá</h3>
+        <ModuleBody m={mods.valuation_engine} />
+      </div>}
+    </ReportSection>}
+
+    {CHAPTERS.map(c => c.keys.some(k => mods[k]) && <ReportSection id={c.id} title={c.title} key={c.id}>
+      <Chapter modules={mods} keys={c.keys} />
+    </ReportSection>)}
+
+    {otherKeys.length > 0 && <ReportSection id="khac" title="Phân tích khác"><Chapter modules={mods} keys={otherKeys} /></ReportSection>}
+
+    {p.scorecard && <ReportSection id="scorecard" title="Scorecard 15 tiêu chí"><ScorecardBlock scorecard={p.scorecard} criteria={criteria} /></ReportSection>}
+
+    {p.risk && <ReportSection id="rui-ro" title="Rủi ro">
+      {mods.scorecard_risk?.analysis && <Prose text={mods.scorecard_risk.analysis} />}
+      <RiskBlock risk={p.risk} />
+      {mods.scorecard_risk?.metrics?.length > 0 && <MetricsView metrics={mods.scorecard_risk.metrics} />}
+    </ReportSection>}
+
+    {(p.catalysts?.length > 0 || p.monitoring?.length > 0 || mods.catalysts_expectations) && <ReportSection id="catalyst" title="Catalyst và theo dõi">
+      {mods.catalysts_expectations && <ModuleBody m={mods.catalysts_expectations} />}
+      {p.catalysts?.length > 0 && <><h3 className="rl-sub-title">Sự kiện sắp tới</h3><CatalystBlock items={p.catalysts} /></>}
+      {p.monitoring?.length > 0 && <><h3 className="rl-sub-title">Chỉ tiêu cần theo dõi</h3><MonitoringBlock items={p.monitoring} /></>}
+    </ReportSection>}
+
+    {(p.core10 || p.committee) && <ReportSection id="phan-bien" title="Phản biện">
+      {p.core10 && <div className="rl-sub"><h3 className="rl-sub-title">10 câu hỏi cốt lõi</h3><OpinionList items={p.core10} numbered /></div>}
+      {p.committee && <div className="rl-sub"><h3 className="rl-sub-title">Hội đồng đầu tư · 6 góc nhìn</h3><OpinionList items={p.committee} labels={COMMITTEE} /></div>}
+    </ReportSection>}
+
+    <ReportSection id="nguon" title="Nguồn tham khảo">
+      <SourcesBlock sources={p.sources} />
+      {p.metadata?.change_log?.length > 0 && <details className="rl-changelog"><summary>Lịch sử thay đổi (R{data.revision})</summary><BulletList items={p.metadata.change_log} /></details>}
+      <div className="rl-meta">Công bố {dateText(data.published_at)} · R{data.revision} · Schema {data.schema_version} · SHA-256 <code>{data.sha256}</code></div>
+    </ReportSection>
+  </article>
+}
+
+const useSourceMap = data => useMemo(() => Object.fromEntries((data?.payload?.sources || []).map(s => [s.id, s])), [data])
+
 function ResearchPage({ ticker, exchange }) {
   const report = useApi({ action: 'research', ticker, exchange }, [ticker, exchange])
   const crit = useApi({ action: 'criteria' }, [])
   const [size, setSize] = useReaderSize()
   const data = report.data
   const p = data?.payload || {}
-  const mods = p.modules || {}
-  const sourceMap = useMemo(() => Object.fromEntries((p.sources || []).map(s => [s.id, s])), [p.sources])
+  const sourceMap = useSourceMap(data)
   const title = data ? `${ticker} · ${data.company || ''}` : ticker
   useEffect(() => { document.title = `${title} · InvStock` }, [title])
-  const otherKeys = Object.keys(mods).filter(k => !PLACED.has(k))
+  useEffect(() => { upsertTab(researchTab({ ticker, exchange }, data?.company)) }, [ticker, exchange, data?.company])
 
-  const sections = useMemo(() => {
-    if (!data) return []
-    return [
-      { id: 'tom-tat', title: 'Tóm tắt', show: true },
-      { id: 'luan-diem', title: 'Luận điểm', show: !!p.decision },
-      { id: 'dinh-gia', title: 'Định giá', show: !!p.valuation || !!mods.valuation_engine },
-      ...CHAPTERS.map(c => ({ id: c.id, title: c.title, show: c.keys.some(k => mods[k]) })),
-      { id: 'khac', title: 'Phân tích khác', show: otherKeys.length > 0 },
-      { id: 'scorecard', title: 'Scorecard', show: !!p.scorecard },
-      { id: 'rui-ro', title: 'Rủi ro', show: !!p.risk },
-      { id: 'catalyst', title: 'Catalyst và theo dõi', show: !!p.catalysts?.length || !!p.monitoring?.length || !!mods.catalysts_expectations },
-      { id: 'phan-bien', title: 'Phản biện', show: !!p.core10 || !!p.committee },
-      { id: 'nguon', title: 'Nguồn', show: true }
-    ].filter(s => s.show)
-  }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sections = useMemo(() => researchSections(data), [data])
   const active = useScrollSpy(sections.map(s => s.id), Boolean(data))
-  const progress = useReadingProgress(`/research/${encodeURIComponent(ticker)}?exchange=${exchange}`, title, Boolean(data))
+  const progress = useReadingProgress(researchHref({ ticker, exchange }), title, Boolean(data))
 
   return <SourcesContext.Provider value={sourceMap}>
     <div className="rl rl-reader" style={{ '--reader-scale': size }}>
@@ -915,59 +1198,7 @@ function ResearchPage({ ticker, exchange }) {
           <KeyFacts data={data} p={p} />
           <div className="rl-layout">
             <SectionNav sections={sections} active={active} />
-            <article className="rl-article">
-              <ReportSection id="tom-tat" title="Tóm tắt">
-                {mods.executive_summary ? <div className="rl-summary">
-                  <ModuleBody m={mods.executive_summary} />
-                </div> : <p className="rl-muted">Không có tóm tắt.</p>}
-              </ReportSection>
-
-              {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư">
-                {mods.decision_monitoring?.analysis && <Prose text={mods.decision_monitoring.analysis} />}
-                <ThesisBlock decision={p.decision} />
-                {mods.decision_monitoring?.metrics?.length > 0 && <MetricsView metrics={mods.decision_monitoring.metrics} />}
-                <Gaps items={mods.decision_monitoring?.gaps} />
-              </ReportSection>}
-
-              {(p.valuation || mods.valuation_engine) && <ReportSection id="dinh-gia" title="Định giá" kicker={`Đơn vị: ${p.valuation?.currency || 'VND'}/cổ phiếu`}>
-                <ValuationBlock v={p.valuation} />
-                {mods.valuation_engine && <div className="rl-sub" id="module-valuation_engine">
-                  <h3 className="rl-sub-title">Mô hình định giá</h3>
-                  <ModuleBody m={mods.valuation_engine} />
-                </div>}
-              </ReportSection>}
-
-              {CHAPTERS.map(c => c.keys.some(k => mods[k]) && <ReportSection id={c.id} title={c.title} key={c.id}>
-                <Chapter modules={mods} keys={c.keys} />
-              </ReportSection>)}
-
-              {otherKeys.length > 0 && <ReportSection id="khac" title="Phân tích khác"><Chapter modules={mods} keys={otherKeys} /></ReportSection>}
-
-              {p.scorecard && <ReportSection id="scorecard" title="Scorecard 15 tiêu chí"><ScorecardBlock scorecard={p.scorecard} criteria={crit.data?.criteria} /></ReportSection>}
-
-              {p.risk && <ReportSection id="rui-ro" title="Rủi ro">
-                {mods.scorecard_risk?.analysis && <Prose text={mods.scorecard_risk.analysis} />}
-                <RiskBlock risk={p.risk} />
-                {mods.scorecard_risk?.metrics?.length > 0 && <MetricsView metrics={mods.scorecard_risk.metrics} />}
-              </ReportSection>}
-
-              {(p.catalysts?.length > 0 || p.monitoring?.length > 0 || mods.catalysts_expectations) && <ReportSection id="catalyst" title="Catalyst và theo dõi">
-                {mods.catalysts_expectations && <ModuleBody m={mods.catalysts_expectations} />}
-                {p.catalysts?.length > 0 && <><h3 className="rl-sub-title">Sự kiện sắp tới</h3><CatalystBlock items={p.catalysts} /></>}
-                {p.monitoring?.length > 0 && <><h3 className="rl-sub-title">Chỉ tiêu cần theo dõi</h3><MonitoringBlock items={p.monitoring} /></>}
-              </ReportSection>}
-
-              {(p.core10 || p.committee) && <ReportSection id="phan-bien" title="Phản biện">
-                {p.core10 && <div className="rl-sub"><h3 className="rl-sub-title">10 câu hỏi cốt lõi</h3><OpinionList items={p.core10} numbered /></div>}
-                {p.committee && <div className="rl-sub"><h3 className="rl-sub-title">Hội đồng đầu tư · 6 góc nhìn</h3><OpinionList items={p.committee} labels={COMMITTEE} /></div>}
-              </ReportSection>}
-
-              <ReportSection id="nguon" title="Nguồn tham khảo">
-                <SourcesBlock sources={p.sources} />
-                {p.metadata?.change_log?.length > 0 && <details className="rl-changelog"><summary>Lịch sử thay đổi (R{data.revision})</summary><BulletList items={p.metadata.change_log} /></details>}
-                <div className="rl-meta">Công bố {dateText(data.published_at)} · R{data.revision} · Schema {data.schema_version} · SHA-256 <code>{data.sha256}</code></div>
-              </ReportSection>
-            </article>
+            <ResearchArticle data={data} criteria={crit.data?.criteria} />
           </div>
         </>}
       </main>
@@ -992,6 +1223,8 @@ function ScreeningPage({ lineageKey }) {
     .filter(c => !q || fold(c.ticker).includes(fold(q)))
     .sort((a, b) => (a.rank ?? 1e9) - (b.rank ?? 1e9) || String(a.ticker).localeCompare(String(b.ticker))), [p.candidates, q])
   useEffect(() => { document.title = `${data?.strategy || 'Screening'} · InvStock` }, [data])
+  useEffect(() => { upsertTab({ path: screeningHref({ lineage_key: lineageKey }), kind: 'screening', title: 'Screening', sub: data?.strategy || '' }) }, [lineageKey, data?.strategy])
+  useScrollMemory(screeningHref({ lineage_key: lineageKey }), Boolean(data))
 
   return <SourcesContext.Provider value={sourceMap}>
     <div className="rl rl-reader">
@@ -1042,10 +1275,247 @@ function ScreeningPage({ lineageKey }) {
   </SourcesContext.Provider>
 }
 
+/* ---------- So sánh 2–3 bài ---------- */
+
+function parseCompare(search) {
+  const raw = new URLSearchParams(search).get('items') || ''
+  const seen = new Set()
+  return raw.split(',').map(x => x.trim()).filter(Boolean).map(x => {
+    const [t, e] = x.split('.')
+    return { ticker: String(t).toUpperCase(), exchange: String(e || 'HOSE').toUpperCase() }
+  }).filter(x => /^[A-Z0-9]{2,10}$/.test(x.ticker) && /^[A-Z]{2,10}$/.test(x.exchange) && !seen.has(x.ticker + x.exchange) && seen.add(x.ticker + x.exchange)).slice(0, 3)
+}
+
+function useMany(items) {
+  const key = items.map(i => `${i.ticker}.${i.exchange}`).join(',')
+  const init = () => items.map(i => {
+    const hit = cachedData({ action: 'research', ticker: i.ticker, exchange: i.exchange })
+    return hit ? { data: hit, loading: false, error: '' } : { data: null, loading: true, error: '' }
+  })
+  const [state, setState] = useState(init)
+  useEffect(() => {
+    let active = true
+    setState(init())
+    items.forEach((i, n) => {
+      fetchCached({ action: 'research', ticker: i.ticker, exchange: i.exchange })
+        .then(data => { if (active) setState(s => s.map((x, k) => k === n ? { data, loading: false, error: '' } : x)) })
+        .catch(err => { if (active) setState(s => s.map((x, k) => k === n ? { data: null, loading: false, error: err.message } : x)) })
+    })
+    return () => { active = false }
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  return state
+}
+
+// Hàng của bảng so sánh. best: 'max' tô đậm giá trị tốt nhất giữa các bài.
+const COMPARE_ROWS = [
+  { group: 'Kết luận' },
+  { label: 'Quyết định', cell: d => <Badge map={DECISION} value={d.decision_status} code={false} /> },
+  { label: 'Luận điểm', cell: d => <Badge map={THESIS} value={d.thesis_status || d.payload?.decision?.thesis_status} code={false} /> },
+  { label: 'Cổng rủi ro', cell: d => <Badge map={GATE} value={d.risk_gate} code={false} /> },
+  { label: 'Điểm scorecard', value: d => d.official_total ?? d.normalized_score, best: 'max',
+    cell: d => <>{score(d.official_total ?? d.normalized_score)}<small className="rl-muted">/100{d.official_total == null && d.normalized_score != null ? ' · tạm' : ''}</small></> },
+  { label: 'Coverage · tin cậy', cell: d => `${num(d.payload?.scorecard?.coverage ?? d.score_coverage, 0)}% · ${CONFIDENCE[d.payload?.scorecard?.confidence || d.score_confidence]?.vi || '—'}` },
+  { group: 'Định giá' },
+  { label: 'Giá thị trường', cell: d => <>{price(d.payload?.valuation?.price ?? d.price)}<small className="rl-muted"> · {dateText(d.payload?.valuation?.price_date ?? d.price_date)}</small></> },
+  { label: 'Giá trị hợp lý', cell: d => price(d.payload?.valuation?.fair_value ?? d.fair_value) },
+  { label: 'Biên an toàn (MOS)', value: d => d.payload?.valuation?.mos ?? d.mos, best: 'max',
+    cell: d => { const v = d.payload?.valuation || {}; const m = v.mos ?? d.mos; const r = v.required_mos ?? d.required_mos
+      return <><span className={isNum(m) && isNum(r) ? (m >= r ? 'good' : 'warn') : ''}>{pct(m)}</span><small className="rl-muted"> · yêu cầu {pct(r)}</small></> } },
+  { label: 'Upside / downside', value: d => d.payload?.valuation?.upside ?? d.upside, best: 'max',
+    cell: d => `${pct(d.payload?.valuation?.upside ?? d.upside)} / ${pct(d.payload?.valuation?.downside ?? d.downside)}` },
+  { label: 'Reward / risk', value: d => d.payload?.valuation?.reward_risk ?? d.reward_risk, best: 'max', cell: d => num(d.payload?.valuation?.reward_risk ?? d.reward_risk) },
+  { label: 'Giá mua tối đa', cell: d => price(d.payload?.valuation?.max_buy ?? d.max_buy) },
+  { group: 'Dữ liệu' },
+  { label: 'Ngành', cell: d => d.sector || '—' },
+  { label: 'Kỳ báo cáo', cell: d => d.reporting_period || '—' },
+  { label: 'Dữ liệu đến', cell: d => `${dateText(d.cutoff)} · R${d.revision}` }
+]
+
+function CompareTable({ items, results }) {
+  const cols = items.map((it, i) => ({ it, ...results[i] }))
+  return <div className="rl-table-wrap rl-cmp-wrap"><table className="rl-table rl-cmp-table" style={{ '--cols': cols.length }}>
+    <thead><tr><th className="rl-cmp-label" />
+      {cols.map(({ it, data }) => <th key={it.ticker + it.exchange} scope="col">
+        <a href={researchHref(it)} className="rl-cmp-head" title="Mở bài đầy đủ">
+          <b>{it.ticker}</b><span>{data?.company || it.exchange}</span>
+        </a>
+      </th>)}
+    </tr></thead>
+    <tbody>{COMPARE_ROWS.map((r, ri) => {
+      if (r.group) return <tr key={ri} className="rl-cmp-group"><th colSpan={cols.length + 1}>{r.group}</th></tr>
+      const vals = r.best ? cols.map(c => (c.data ? r.value(c.data) : null)) : []
+      const nums = vals.filter(isNum)
+      const top = nums.length > 1 ? Math.max(...nums) : null
+      return <tr key={ri}>
+        <th scope="row" className="rl-cmp-label">{r.label}</th>
+        {cols.map((c, ci) => <td key={ci} className={top !== null && vals[ci] === top ? 'rl-cmp-best' : ''}>
+          {c.loading ? <span className="rl-muted">…</span> : c.error ? <span className="rl-muted">Không tải được</span> : r.cell(c.data)}
+        </td>)}
+      </tr>
+    })}</tbody>
+  </table></div>
+}
+
+function sectionTop(pane, el) {
+  return el.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop - 6
+}
+
+function ComparePane({ index, item, result, criteria, sectionsRef, onSection }) {
+  const paneRef = useRef(null)
+  const prefix = `p${index}-`
+  const data = result.data
+  const sections = useMemo(() => researchSections(data), [data])
+  const sourceMap = useSourceMap(data)
+  const [active, setActive] = useState('')
+  useEffect(() => {
+    sectionsRef.current[index] = id => {
+      const pane = paneRef.current
+      const el = pane?.querySelector(`#${prefix}${id}`)
+      if (pane && el) pane.scrollTo({ top: sectionTop(pane, el), behavior: 'smooth' })
+    }
+  })
+  useEffect(() => {
+    const pane = paneRef.current
+    if (!pane || !data) return
+    let frame = 0
+    const on = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        let cur = sections[0]?.id || ''
+        for (const s of sections) {
+          const el = pane.querySelector(`#${prefix}${s.id}`)
+          if (el && sectionTop(pane, el) <= pane.scrollTop + 40) cur = s.id
+        }
+        setActive(cur)
+      })
+    }
+    on()
+    pane.addEventListener('scroll', on, { passive: true })
+    return () => { cancelAnimationFrame(frame); pane.removeEventListener('scroll', on) }
+  }, [data, sections, prefix])
+  // Liên kết nguồn [S1] cuộn trong khung thay vì nhảy cả trang.
+  const onClick = e => {
+    const a = e.target.closest?.('a[href^="#"]')
+    if (!a || !paneRef.current) return
+    const el = paneRef.current.querySelector(`#${CSS.escape(decodeURIComponent(a.getAttribute('href').slice(1)))}`)
+    if (!el) return
+    e.preventDefault()
+    paneRef.current.scrollTo({ top: sectionTop(paneRef.current, el), behavior: 'smooth' })
+  }
+  return <section className="rl-pane" aria-label={`Bài ${item.ticker}`}>
+    <header className="rl-pane-head">
+      <a href={researchHref(item)} className="rl-pane-title" title="Mở bài đầy đủ"><b>{item.ticker}</b><span>{data?.company || item.exchange}</span></a>
+      {sections.length > 0 && <label className="rl-select sm"><span className="rl-sr">Đi tới mục</span>
+        <select value={active} onChange={e => onSection(index, e.target.value)}>
+          {sections.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+        </select></label>}
+    </header>
+    <div className="rl-pane-body" ref={paneRef} onClick={onClick}>
+      {result.loading && <Skeleton rows={6} />}
+      {result.error && <Empty tone="error">Không mở được {item.ticker} ({result.error}).</Empty>}
+      {data && <IdPrefix.Provider value={prefix}><SourcesContext.Provider value={sourceMap}>
+        <ResearchArticle data={data} criteria={criteria} />
+      </SourcesContext.Provider></IdPrefix.Provider>}
+    </div>
+  </section>
+}
+
+function ComparePage({ search }) {
+  const items = useMemo(() => parseCompare(search), [search])
+  const results = useMany(items)
+  const crit = useApi({ action: 'criteria' }, [])
+  const { tabs } = useTabs()
+  const [size, setSize] = useReaderSize()
+  const [sync, setSync] = useState(true)
+  const [mobilePane, setMobilePane] = useState(0)
+  const sectionsRef = useRef([])
+  const research = tabs.filter(t => t.kind === 'research' && t.ticker)
+  const chosen = new Set(items.map(i => `${i.ticker}.${i.exchange}`))
+  const pool = [...items, ...research.filter(t => !chosen.has(`${t.ticker}.${t.exchange}`))]
+  useEffect(() => { document.title = `So sánh ${items.map(i => i.ticker).join(' · ')} · InvStock` }, [items])
+  useEffect(() => { patchTabs({ last: currentPath() }) }, [search])
+  useScrollMemory('/compare', results.every(r => !r.loading))
+  sectionsRef.current.length = items.length
+  useEffect(() => { if (mobilePane >= items.length) setMobilePane(0) }, [items.length, mobilePane])
+
+  const toggle = it => {
+    const k = `${it.ticker}.${it.exchange}`
+    const next = chosen.has(k) ? items.filter(i => `${i.ticker}.${i.exchange}` !== k) : [...items, { ticker: it.ticker, exchange: it.exchange }].slice(-3)
+    navigate(compareHref(next), { replace: true })
+  }
+  const onSection = (from, id) => {
+    sectionsRef.current.forEach((go, i) => { if (go && (sync || i === from)) go(id) })
+  }
+  const common = useMemo(() => {
+    const lists = results.map(r => researchSections(r.data)).filter(l => l.length)
+    return lists[0] || []
+  }, [results])
+
+  return <div className="rl rl-reader rl-compare" style={{ '--reader-scale': size, '--panes': Math.max(items.length, 1) }}>
+    <TopBar>
+      <div className="rl-topbar-title"><b>So sánh</b><span>{items.map(i => i.ticker).join(' · ') || 'Chọn bài'}</span></div>
+      <SizeControl size={size} setSize={setSize} />
+    </TopBar>
+    <main className="rl-main rl-wide">
+      <section className="rl-cmp-intro">
+        <div>
+          <h1>So sánh báo cáo</h1>
+          <p className="rl-muted">Chọn 2–3 bài đang mở. Bấm tên mã để mở bài đầy đủ trong tab.</p>
+        </div>
+        <div className="rl-chips" role="group" aria-label="Bài đưa vào so sánh">
+          {pool.map(t => {
+            const k = `${t.ticker}.${t.exchange}`
+            return <button key={k} className={chosen.has(k) ? 'active' : ''} aria-pressed={chosen.has(k)} onClick={() => toggle(t)}>
+              {chosen.has(k) ? '✓ ' : '+ '}{t.ticker}
+            </button>
+          })}
+          {!pool.length && <span className="rl-muted">Chưa có bài nào đang mở. Về Thư viện và bấm “+ Mở tab” ở 2–3 bài.</span>}
+        </div>
+      </section>
+
+      {items.length > 0 && <CompareTable items={items} results={results} />}
+      {items.length === 1 && <Empty>Chọn thêm ít nhất 1 bài để so sánh.</Empty>}
+
+      {items.length > 0 && <>
+        <div className="rl-cmp-toolbar">
+          <h2>Đọc song song</h2>
+          {common.length > 0 && <label className="rl-select"><span>Mở cùng mục</span>
+            <select defaultValue="" onChange={e => { if (e.target.value) { onSection(-1, e.target.value); e.target.value = '' } }}>
+              <option value="" disabled>Chọn mục…</option>
+              {common.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select></label>}
+          {items.length > 1 && <label className="rl-check"><input type="checkbox" checked={sync} onChange={e => setSync(e.target.checked)} /> Đổi mục ở một khung thì các khung khác đi theo</label>}
+          {items.length > 1 && <div className="rl-pane-switch" role="tablist" aria-label="Chọn bài">
+            {items.map((it, i) => <button key={i} role="tab" aria-selected={mobilePane === i} className={mobilePane === i ? 'active' : ''} onClick={() => setMobilePane(i)}>{it.ticker}</button>)}
+          </div>}
+        </div>
+        <div className="rl-panes">
+          {items.map((it, i) => <div key={`${it.ticker}.${it.exchange}`} className={`rl-pane-slot ${mobilePane === i ? 'mobile-active' : ''}`}>
+            <ComparePane index={i} item={it} result={results[i] || { loading: true }} criteria={crit.data?.criteria} sectionsRef={sectionsRef} onSection={onSection} />
+          </div>)}
+        </div>
+      </>}
+    </main>
+    <Footer />
+  </div>
+}
+
+/* ---------- Bộ định tuyến ---------- */
+
 export default function PublicLibrary() {
-  const path = window.location.pathname.split('/').filter(Boolean)
-  const exchange = (new URLSearchParams(window.location.search).get('exchange') || 'HOSE').toUpperCase()
-  if (path[0] === 'research' && path[1]) return <ResearchPage ticker={decodeURIComponent(path[1]).toUpperCase()} exchange={exchange} />
-  if (path[0] === 'screening' && path[1]) return <ScreeningPage lineageKey={decodeURIComponent(path[1])} />
-  return <Home />
+  const loc = useLocationPath()
+  useLinkInterceptor()
+  useScrollSaver()
+  const url = new URL(loc, window.location.origin)
+  const path = url.pathname.split('/').filter(Boolean)
+  const exchange = (url.searchParams.get('exchange') || 'HOSE').toUpperCase()
+  const ticker = path[0] === 'research' && path[1] ? decodeURIComponent(path[1]).toUpperCase() : ''
+  // Chuẩn hóa địa chỉ bài để tab nhận ra cùng một bài (ví dụ /research/fpt → /research/FPT?exchange=HOSE).
+  const canonical = ticker ? researchHref({ ticker, exchange }) : ''
+  useEffect(() => { if (canonical && canonical !== loc) navigate(canonical + window.location.hash, { replace: true }) }, [canonical, loc])
+  useEffect(() => { if (path[0] !== 'compare' && path.length) patchTabs({ last: loc }) }, [loc]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (ticker) return <ResearchPage key={canonical} ticker={ticker} exchange={exchange} />
+  if (path[0] === 'screening' && path[1]) return <ScreeningPage key={loc} lineageKey={decodeURIComponent(path[1])} />
+  if (path[0] === 'compare') return <ComparePage search={url.search} />
+  return <Home key={loc} />
 }
