@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invstock.local/contracts/0.1.0/defs.schema.json",
+  "title": "InvStock contract shared definitions (DRAFT 0.1.0)",
+  "$defs": {
+    "contract_version": { "const": "0.1.0" },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "datetime": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$" },
+    "text": { "type": "string", "minLength": 1 },
+    "json_pointer": {
+      "description": "RFC 6901 JSON Pointer into a schema-02 Full Research JSON. Root ('') is not allowed.",
+      "type": "string", "pattern": "^(/([^~/]|~[01])*)+$"
+    },
+    "hash_algorithm": { "const": "sha256" },
+    "canonicalization_version": { "const": "JCS-RFC8785/invstock-1" },
+    "profile_id": {
+      "description": "Stable security key = invstock.securities.id (not the bare ticker).",
+      "$ref": "#/$defs/uuid"
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "ticker": { "type": "string", "pattern": "^[A-Z0-9]{3,10}$" },
+        "exchange": { "enum": ["HOSE", "HNX", "UPCOM"] }
+      },
+      "required": ["ticker", "exchange"], "additionalProperties": false
+    },
+    "module_key": {
+      "enum": ["executive_summary", "company_intelligence", "industry_macro", "competitive_advantage",
+               "financial_performance", "financial_forensics", "debt_liquidity", "ownership_governance",
+               "assets_projects", "growth_forecast", "valuation_engine", "catalysts_expectations",
+               "scorecard_risk", "decision_monitoring"]
+    },
+    "component_key": {
+      "enum": ["schema_name", "schema_version", "metadata", "identity", "sources", "core10", "committee",
+               "scorecard", "valuation", "risk", "decision", "catalysts", "monitoring"]
+    },
+    "source": {
+      "description": "Same shape as a schema-02 sources[] item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "$ref": "#/$defs/text" },
+        "locator": { "$ref": "#/$defs/text" },
+        "published_on": { "anyOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }] },
+        "accessed_on": { "$ref": "#/$defs/date" },
+        "tier": { "type": "integer", "minimum": 1, "maximum": 5 }
+      },
+      "required": ["id", "title", "locator", "published_on", "accessed_on", "tier"],
+      "additionalProperties": false
+    },
+    "source_ids": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "base_snapshot": {
+      "type": "object",
+      "properties": {
+        "record_id": { "$ref": "#/$defs/uuid" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "manifest_id": { "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "manifest_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
+      },
+      "required": ["record_id", "revision", "sha256", "manifest_id", "manifest_sha256"],
+      "additionalProperties": false
+    },
+    "evidence_item": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["FACT", "METRIC", "ASSUMPTION", "EXTERNAL_VIEW", "COUNTEREVIDENCE"] },
+        "statement": { "$ref": "#/$defs/text" },
+        "value": { "type": ["number", "string", "null"] },
+        "unit": { "type": ["string", "null"] },
+        "period": { "type": ["string", "null"] },
+        "status": { "enum": ["VERIFIED", "REPORTED", "ESTIMATED", "UNVERIFIED"] },
+        "source_ids": { "$ref": "#/$defs/source_ids" }
+      },
+      "required": ["kind", "statement", "status", "source_ids"],
+      "additionalProperties": false
+    },
+    "gap": {
+      "type": "object",
+      "properties": {
+        "description": { "$ref": "#/$defs/text" },
+        "materiality": { "enum": ["MATERIAL", "MINOR"] },
+        "impact": { "$ref": "#/$defs/text" }
+      },
+      "required": ["description", "materiality", "impact"], "additionalProperties": false
+    },
+    "impact_item": {
+      "type": "object",
+      "properties": {
+        "path": { "$ref": "#/$defs/json_pointer" },
+        "result": { "enum": ["CHANGE", "NO_CHANGE", "NEEDS_REVIEW"] },
+        "reason": { "$ref": "#/$defs/text" },
+        "reviewer": { "type": ["string", "null"] }
+      },
+      "required": ["path", "result", "reason", "reviewer"], "additionalProperties": false
+    }
+  }
+}

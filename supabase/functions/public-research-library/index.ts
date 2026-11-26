@@ -1,8 +1,11 @@
-// public-research-library v4: chỉ đọc bản đã xuất bản. Khách xem 'public'; người đã đăng nhập xem thêm 'members'.
+// public-research-library v6: chỉ đọc bản đã xuất bản. Khách xem 'public'; người đã đăng nhập xem thêm 'members'.
 // GET ?action=list | ?action=research&ticker=FPT[&exchange=HOSE] | ?action=screening&lineage_key=...
 //     ?action=history&ticker=FPT[&exchange=HOSE] | ?action=history&lineage_key=...   (các bản từng xuất bản của chuỗi)
 //     ?action=record&id=<record_id>                                                 (đường dẫn cố định một bản)
 //     ?action=criteria | ?action=glossary
+//     ?action=notes&ticker=FPT[&exchange=HOSE]   (chuyên đề đã xuất bản; không ảnh hưởng con trỏ current)
+//     ?action=note&id=<note_version_id>          (toàn văn một chuyên đề)
+//     ?action=blocks&ticker=FPT[&exchange=HOSE]  (revision từng block theo manifest của các bản được phép xem; không trả hash)
 // Bản đã thu hồi (withdrawn) không bao giờ trả nội dung; chỉ trả ngày thu hồi cho người có quyền xem bản đó.
 import { cors, json, serviceClient, callerId } from "../_shared/common.ts";
 
@@ -76,6 +79,54 @@ Deno.serve(async (req) => {
             became_current_at: p.became_current_at, superseded_at: p.superseded_at, superseded_by: p.superseded_by });
       items.sort((a: any, b: any) => (a.revision ?? 0) - (b.revision ?? 0));
       return json({ success: true, lineage_key: lk, items }, 200, cache);
+    }
+    const tickerKey = () => {
+      const t = (q.get("ticker") ?? "").trim().toUpperCase();
+      if (!/^[A-Z0-9]{2,10}$/.test(t)) return null;
+      return { t, ex: (q.get("exchange") ?? "HOSE").toUpperCase() };
+    };
+    const NOTE_COLS = "note_version_id,note_id,note_version,topic,title,outcome,base_record_id,as_of,cutoff,reviewed_at,links:lib_note_module_links(module_key,role)";
+    if (action === "notes") {
+      const k = tickerKey();
+      if (!k) return json({ error: "ticker_required" }, 400);
+      const { data: sec } = await db.from("securities").select("id,exchange").eq("ticker", k.t).maybeSingle();
+      if (!sec || sec.exchange !== k.ex) return json({ success: true, notes: [] }, 200, cache);
+      const { data, error } = await db.from("lib_note_publications")
+        .select(`note_version_id,visibility,published_at,note:lib_notes!inner(${NOTE_COLS},profile_id)`)
+        .eq("role", "published").in("visibility", vis).eq("note.profile_id", sec.id).order("published_at", { ascending: false });
+      if (error) throw error;
+      const notes = (data ?? []).map((p: any) => { const { profile_id: _p, ...n } = p.note; return { ...n, visibility: p.visibility, published_at: p.published_at }; });
+      return json({ success: true, notes }, 200, cache);
+    }
+    if (action === "note") {
+      const id = (q.get("id") ?? "").trim().toLowerCase();
+      if (!UUID.test(id)) return json({ error: "id_required" }, 400);
+      const { data, error } = await db.from("lib_note_publications")
+        .select(`role,visibility,published_at,withdrawn_at,note:lib_notes!inner(${NOTE_COLS},payload)`)
+        .eq("note_version_id", id).in("visibility", vis).maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "published_note_not_found" }, 404, cache);
+      if (data.role === "withdrawn") return json({ error: "note_withdrawn", withdrawn_at: data.withdrawn_at }, 410, cache);
+      return json({ success: true, visibility: data.visibility, published_at: data.published_at, ...(data as any).note }, 200, cache);
+    }
+    if (action === "blocks") {
+      const k = tickerKey();
+      if (!k) return json({ error: "ticker_required" }, 400);
+      const { data: pubs, error: pe } = await db.from("lib_record_publications").select("record_id,role")
+        .eq("lineage_key", `research:${k.t}:${k.ex}`).in("visibility", vis).neq("role", "withdrawn");
+      if (pe) throw pe;
+      const ids = (pubs ?? []).map((p: any) => p.record_id);
+      if (!ids.length) return json({ success: true, records: [] }, 200, cache);
+      const { data, error } = await db.from("lib_manifests")
+        .select("record_id,provenance_kind,record:lib_records!lib_manifests_record_id_fkey(revision),entries:lib_manifest_entries(path,disposition,change_class,version:lib_block_versions(block_revision))")
+        .in("record_id", ids);
+      if (error) throw error;
+      const records = (data ?? []).map((m: any) => ({
+        record_id: m.record_id, revision: m.record?.revision, provenance_kind: m.provenance_kind,
+        role: pubs!.find((p: any) => p.record_id === m.record_id)?.role,
+        blocks: (m.entries ?? []).map((e: any) => ({ path: e.path, disposition: e.disposition, change_class: e.change_class, block_revision: e.version?.block_revision })),
+      })).sort((a: any, b: any) => a.revision - b.revision);
+      return json({ success: true, records }, 200, cache);
     }
     let key: string | null = null;
     if (action === "research") {

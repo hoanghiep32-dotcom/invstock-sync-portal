@@ -4,6 +4,7 @@ import './style.css'
 import PublicLibrary from './library.jsx'
 import './library.css'
 import GlossaryAdminPanel from './glossaryAdmin.jsx'
+import ResearchOpsPanel from './researchOpsAdmin.jsx'
 
 // InvStock Sync Portal – chuẩn v2.0.0
 // Quy trình (file 08): PREVIEW -> duyệt đúng SHA-256 -> SYNC -> VERIFY. Xuất bản là bước riêng của admin.
@@ -248,6 +249,7 @@ function Admin() {
     <div className="notice">Sync không tự xuất bản. Sau khi sync, bản ghi là bất biến; muốn sửa phải tạo revision mới có parent_id.</div>
     <SyncPanel session={session} onSynced={() => setRefreshKey(k => k + 1)} />
     <RecordsPanel session={session} refreshKey={refreshKey} />
+    <ResearchOpsPanel session={session} callFn={callFn} refreshKey={refreshKey} />
     <GlossaryAdminPanel session={session} callFn={callFn} />
     <footer>InvStock Tracker · Admin</footer>
   </main>

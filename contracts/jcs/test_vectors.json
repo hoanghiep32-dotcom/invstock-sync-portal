@@ -1,0 +1,78 @@
+{
+  "canonicalization_version": "JCS-RFC8785/invstock-1",
+  "vectors": [
+    {
+      "name": "rfc8785-3.2.3-sorting",
+      "input": "{\"\\u20ac\":\"Euro Sign\",\"\\r\":\"Carriage Return\",\"\\ufb33\":\"Hebrew Letter Dalet With Dagesh\",\"1\":\"One\",\"\\ud83d\\ude00\":\"Emoji: Grinning Face\",\"\\u0080\":\"Control\",\"\\u00f6\":\"Latin Small Letter O With Diaeresis\"}",
+      "canonical": "{\"\\r\":\"Carriage Return\",\"1\":\"One\",\"\":\"Control\",\"ö\":\"Latin Small Letter O With Diaeresis\",\"€\":\"Euro Sign\",\"😀\":\"Emoji: Grinning Face\",\"דּ\":\"Hebrew Letter Dalet With Dagesh\"}",
+      "sha256": "5e321556d22018a9656991a9e94f77ec175fa193e52a2429d312f8419ec8b08c"
+    },
+    {
+      "name": "rfc8785-3.2.4-mixed",
+      "input": "{\"numbers\":[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001],\"string\":\"\\u20ac$\\u000F\\u000aA'\\u0042\\u0022\\u005c\\\\\\\"\\/\",\"literals\":[null,true,false]}",
+      "canonical": "{\"literals\":[null,true,false],\"numbers\":[333333333.3333333,1e+30,4.5,0.002,1e-27],\"string\":\"€$\\u000f\\nA'B\\\"\\\\\\\\\\\"/\"}",
+      "sha256": "2d5e01a318d0f0879ab568c4be289c8b1f64ef8921a53c6277d5e069978baacb"
+    },
+    {
+      "name": "numbers-es-format",
+      "input": "[0,-0,1,-1,0.1,1e21,1e20,123456789012345680000,1e-6,1e-7,5e-324,1.7976931348623157e308,9007199254740991,-9007199254740991,0.30000000000000004,100,1.5e3,2.5E-5]",
+      "canonical": "[0,0,1,-1,0.1,1e+21,100000000000000000000,123456789012345680000,0.000001,1e-7,5e-324,1.7976931348623157e+308,9007199254740991,-9007199254740991,0.30000000000000004,100,1500,0.000025]",
+      "sha256": "3ba5d3209b66498701cce91196520de2c7e772b04b2e5087651f5142163ed91c"
+    },
+    {
+      "name": "nested-and-whitespace",
+      "input": " { \"b\" : [ 1 , { \"z\" : true , \"a\" : null } ] , \"a\" : { } , \"c\" : [ ] } ",
+      "canonical": "{\"a\":{},\"b\":[1,{\"a\":null,\"z\":true}],\"c\":[]}",
+      "sha256": "c1e97968074917e0e0a1cbf999595dc13b0a852a65adb2aed4cab2ec5bc4979e"
+    },
+    {
+      "name": "vietnamese-text",
+      "input": "{\"tiêu_đề\":\"Sở hữu và quản trị\",\"ghi_chú\":\"Tỷ lệ CFO/LNST ≈ 12,24%\",\"Đ\":1,\"D\":2}",
+      "canonical": "{\"D\":2,\"ghi_chú\":\"Tỷ lệ CFO/LNST ≈ 12,24%\",\"tiêu_đề\":\"Sở hữu và quản trị\",\"Đ\":1}",
+      "sha256": "c4eb7e4190b7eb2c869b3f26b43a3f3f4f4cfaa596fe9a3ccc53a112e734c5b8"
+    },
+    {
+      "name": "control-chars",
+      "input": "\"tab\\tline\\nnull\\u0000del\\u007funit\\u001f\"",
+      "canonical": "\"tab\\tline\\nnull\\u0000delunit\\u001f\"",
+      "sha256": "bc25326f9a3ce829936f6339d66e0d27bb03d887cb04712ad5b7f46534dcafc5"
+    },
+    {
+      "name": "lone-surrogate",
+      "input": "\"x\\ud800y\"",
+      "canonical": "\"x\\ud800y\"",
+      "sha256": "9a169437fef5075be16c17ac52ede80c3a746d2b759a623ae040ef8af69e5eb0"
+    },
+    {
+      "name": "invstock-block",
+      "input": "{\"path\":\"/modules/valuation_engine\",\"content\":{\"analysis\":\"FV 51.371\",\"metrics\":[{\"name\":\"MOS\",\"value\":0.1035815433360342,\"unit\":\"fraction\"}],\"source_ids\":[\"S2\",\"S1\"]},\"sources\":[{\"id\":\"S1\",\"tier\":1},{\"id\":\"S2\",\"tier\":4}]}",
+      "canonical": "{\"content\":{\"analysis\":\"FV 51.371\",\"metrics\":[{\"name\":\"MOS\",\"unit\":\"fraction\",\"value\":0.1035815433360342}],\"source_ids\":[\"S2\",\"S1\"]},\"path\":\"/modules/valuation_engine\",\"sources\":[{\"id\":\"S1\",\"tier\":1},{\"id\":\"S2\",\"tier\":4}]}",
+      "sha256": "d844edcbb9f2ef5f62fb703965f857baee1b6b30bfea5280fd4d230c7cf25f58"
+    },
+    {
+      "name": "reject-duplicate-key",
+      "input": "{\"a\":1,\"a\":2}",
+      "error": true
+    },
+    {
+      "name": "reject-nested-duplicate-key",
+      "input": "{\"x\":{\"k\":1,\"k\":1}}",
+      "error": true
+    },
+    {
+      "name": "reject-nan",
+      "input": "[NaN]",
+      "error": true
+    },
+    {
+      "name": "reject-infinity",
+      "input": "[1e400]",
+      "error": true
+    },
+    {
+      "name": "reject-trailing",
+      "input": "{} {}",
+      "error": true
+    }
+  ]
+}

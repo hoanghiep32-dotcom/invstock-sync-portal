@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invstock.local/contracts/0.1.0/research_note.schema.json",
+  "title": "InvStock Research Note (0.1.0, duyệt 2026-11-26)",
+  "description": "Bài chuyên đề/Deep Dive toàn văn (doc 13 §5). Không phải schema 02, không thay thế Full Research. Hash của file nằm ngoài payload.",
+  "type": "object",
+  "properties": {
+    "contract_name": { "const": "invstock.research_note" },
+    "contract_version": { "$ref": "defs.schema.json#/$defs/contract_version" },
+    "note_id": { "$ref": "defs.schema.json#/$defs/uuid", "description": "Ổn định cho cả chuỗi phiên bản của note." },
+    "note_version_id": { "$ref": "defs.schema.json#/$defs/uuid", "description": "Mới cho mỗi phiên bản; bản đã duyệt không sửa." },
+    "note_version": { "type": "integer", "minimum": 1 },
+    "parent_note_version_id": { "anyOf": [{ "$ref": "defs.schema.json#/$defs/uuid" }, { "type": "null" }] },
+    "profile_id": { "$ref": "defs.schema.json#/$defs/profile_id" },
+    "identity": { "$ref": "defs.schema.json#/$defs/identity" },
+    "topic": { "enum": ["OWNERSHIP", "FORENSICS", "RISK", "EVENT", "INDUSTRY", "VALUATION", "GOVERNANCE", "OTHER"] },
+    "title": { "$ref": "defs.schema.json#/$defs/text" },
+    "base": {
+      "description": "Snapshot cơ sở; null chỉ khi note viết trước Full Research đầu tiên (ghi base_absent_reason).",
+      "anyOf": [{ "$ref": "defs.schema.json#/$defs/base_snapshot" }, { "type": "null" }]
+    },
+    "base_absent_reason": { "type": ["string", "null"] },
+    "module_links": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "module_key": { "$ref": "defs.schema.json#/$defs/module_key" },
+          "role": { "enum": ["PRIMARY", "SECONDARY"] }
+        },
+        "required": ["module_key", "role"], "additionalProperties": false
+      }
+    },
+    "scope": { "$ref": "defs.schema.json#/$defs/text" },
+    "research_question": { "$ref": "defs.schema.json#/$defs/text" },
+    "as_of": { "$ref": "defs.schema.json#/$defs/date" },
+    "cutoff": { "$ref": "defs.schema.json#/$defs/date" },
+    "body": {
+      "type": "object",
+      "properties": {
+        "format": { "const": "markdown" },
+        "text": { "$ref": "defs.schema.json#/$defs/text" }
+      },
+      "required": ["format", "text"], "additionalProperties": false
+    },
+    "sources": { "type": "array", "minItems": 1, "items": { "$ref": "defs.schema.json#/$defs/source" } },
+    "evidence": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/evidence_item" } },
+    "gaps": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/gap" } },
+    "risks": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/text" } },
+    "impact_review": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/impact_item" } },
+    "outcome": { "enum": ["SUPPLEMENT_ONLY", "PROPOSE_INTEGRATION", "URGENT_REVIEW"] },
+    "quality": {
+      "type": "object",
+      "properties": {
+        "scope_level": { "enum": ["SCOPED_COMPLETE", "SCOPED_PARTIAL", "INSUFFICIENT"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["scope_level", "notes"], "additionalProperties": false
+    },
+    "visibility": { "enum": ["members", "public"], "description": "Mặc định members; không tự chuyển public khi tích hợp." },
+    "created_at": { "$ref": "defs.schema.json#/$defs/datetime" }
+  },
+  "required": ["contract_name", "contract_version", "note_id", "note_version_id", "note_version", "parent_note_version_id",
+               "profile_id", "identity", "topic", "title", "base", "base_absent_reason", "module_links", "scope",
+               "research_question", "as_of", "cutoff", "body", "sources", "evidence", "gaps", "risks", "impact_review",
+               "outcome", "quality", "visibility", "created_at"],
+  "additionalProperties": false,
+  "allOf": [
+    { "if": { "properties": { "base": { "type": "null" } } },
+      "then": { "properties": { "base_absent_reason": { "$ref": "defs.schema.json#/$defs/text" } } } },
+    { "if": { "properties": { "note_version": { "const": 1 } } },
+      "then": { "properties": { "parent_note_version_id": { "type": "null" } } },
+      "else": { "properties": { "parent_note_version_id": { "$ref": "defs.schema.json#/$defs/uuid" } } } }
+  ]
+}

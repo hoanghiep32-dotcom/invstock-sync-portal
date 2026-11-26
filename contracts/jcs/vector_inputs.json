@@ -1,0 +1,15 @@
+[
+ {"name":"rfc8785-3.2.3-sorting","input":"{\"\\u20ac\":\"Euro Sign\",\"\\r\":\"Carriage Return\",\"\\ufb33\":\"Hebrew Letter Dalet With Dagesh\",\"1\":\"One\",\"\\ud83d\\ude00\":\"Emoji: Grinning Face\",\"\\u0080\":\"Control\",\"\\u00f6\":\"Latin Small Letter O With Diaeresis\"}"},
+ {"name":"rfc8785-3.2.4-mixed","input":"{\"numbers\":[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001],\"string\":\"\\u20ac$\\u000F\\u000aA'\\u0042\\u0022\\u005c\\\\\\\"\\/\",\"literals\":[null,true,false]}"},
+ {"name":"numbers-es-format","input":"[0,-0,1,-1,0.1,1e21,1e20,123456789012345680000,1e-6,1e-7,5e-324,1.7976931348623157e308,9007199254740991,-9007199254740991,0.30000000000000004,100,1.5e3,2.5E-5]"},
+ {"name":"nested-and-whitespace","input":" { \"b\" : [ 1 , { \"z\" : true , \"a\" : null } ] , \"a\" : { } , \"c\" : [ ] } "},
+ {"name":"vietnamese-text","input":"{\"tiêu_đề\":\"Sở hữu và quản trị\",\"ghi_chú\":\"Tỷ lệ CFO/LNST ≈ 12,24%\",\"Đ\":1,\"D\":2}"},
+ {"name":"control-chars","input":"\"tab\\tline\\nnull\\u0000del\\u007funit\\u001f\""},
+ {"name":"lone-surrogate","input":"\"x\\ud800y\""},
+ {"name":"invstock-block","input":"{\"path\":\"/modules/valuation_engine\",\"content\":{\"analysis\":\"FV 51.371\",\"metrics\":[{\"name\":\"MOS\",\"value\":0.1035815433360342,\"unit\":\"fraction\"}],\"source_ids\":[\"S2\",\"S1\"]},\"sources\":[{\"id\":\"S1\",\"tier\":1},{\"id\":\"S2\",\"tier\":4}]}"},
+ {"name":"reject-duplicate-key","input":"{\"a\":1,\"a\":2}","error":true},
+ {"name":"reject-nested-duplicate-key","input":"{\"x\":{\"k\":1,\"k\":1}}","error":true},
+ {"name":"reject-nan","input":"[NaN]","error":true},
+ {"name":"reject-infinity","input":"[1e400]","error":true},
+ {"name":"reject-trailing","input":"{} {}","error":true}
+]
