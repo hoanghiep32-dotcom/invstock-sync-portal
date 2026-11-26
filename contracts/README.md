@@ -1,8 +1,8 @@
-# InvStock Contracts 0.1.0 — BẢN NHÁP, CHƯA PHÊ DUYỆT
+# InvStock Contracts 0.1.0 — ĐÃ DUYỆT 26/11/2026
 
 Bộ contract máy đọc được cho tài liệu 13 (Modular Research & Block Standard): **Research Note**, **Research Operation**, **Snapshot Manifest**, kèm thư viện hash JCS và validator.
 
-> Theo doc 13, trước khi các contract này được phê duyệt: không tạo bảng registry/manifest, không import note/operation có cấu trúc, không gọi note/manifest nào là `VALIDATED`. Thư mục này chỉ chứa schema, code kiểm thử và ví dụ; không chạm DB, Edge Function hay giao diện.
+> Đã duyệt ngày 26/11/2026. Mọi thay đổi contract sau này cần tăng contract_version và duyệt lại.
 
 ## Nội dung
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://invstock.local/contracts/0.1.0/research_note.schema.json",
-  "title": "InvStock Research Note (DRAFT 0.1.0, chưa phê duyệt)",
+  "title": "InvStock Research Note (0.1.0, duyệt 2026-11-26)",
   "description": "Bài chuyên đề/Deep Dive toàn văn (doc 13 §5). Không phải schema 02, không thay thế Full Research. Hash của file nằm ngoài payload.",
   "type": "object",
   "properties": {

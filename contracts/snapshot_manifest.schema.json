@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://invstock.local/contracts/0.1.0/snapshot_manifest.schema.json",
-  "title": "InvStock Snapshot Manifest (DRAFT 0.1.0, chưa phê duyệt)",
+  "title": "InvStock Snapshot Manifest (0.1.0, duyệt 2026-11-26)",
   "description": "Sidecar bất biến kê block/cấu phần của một Full JSON (doc 13 §9). Không nhúng vào schema 02; manifest hash tính trên bytes sidecar và lưu ngoài file.",
   "type": "object",
   "properties": {

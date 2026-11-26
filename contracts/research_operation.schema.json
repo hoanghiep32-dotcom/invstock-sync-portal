@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://invstock.local/contracts/0.1.0/research_operation.schema.json",
-  "title": "InvStock Research Operation (DRAFT 0.1.0, chưa phê duyệt)",
+  "title": "InvStock Research Operation (0.1.0, duyệt 2026-11-26)",
   "description": "Tác vụ nghiên cứu có phạm vi và bản cơ sở (doc 13 §4). Patch là đề xuất, không phải Full Research import. Approval/integration/publication là metadata audit ngoài file.",
   "type": "object",
   "properties": {
