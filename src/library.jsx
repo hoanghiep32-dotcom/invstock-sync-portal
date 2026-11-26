@@ -1528,11 +1528,12 @@ function NotePage({ ticker, exchange, id }) {
     <div className="rl rl-reader">
       <TopBar>{n && <div className="rl-topbar-title"><b>{ticker}</b><span>{NOTE_TOPIC[n.topic] || 'Chuyên đề'}</span></div>}</TopBar>
       <main className="rl-main rl-note-page">
-        <a className="rl-back" href={profileHref(item, 'chuyen-de')}>← Chuyên đề của {ticker}</a>
+        {!n && <a className="rl-back" href={profileHref(item, 'chuyen-de')}>← Chuyên đề của {ticker}</a>}
         {res.loading && <Skeleton rows={4} />}
         {res.error && <Empty tone="error">Không mở được chuyên đề ({res.error}). Chuyên đề có thể đã thu hồi hoặc chỉ dành cho thành viên.</Empty>}
         {n && <>
-          <ReportHeader kicker={`${NOTE_TOPIC[n.topic] || 'Chuyên đề'} · ${ticker} · Dữ liệu đến ${dateText(n.cutoff)}`} title={n.title}
+          <ReportHeader back={<a className="rl-back" href={profileHref(item, 'chuyen-de')}>← Chuyên đề của {ticker}</a>}
+            kicker={`${NOTE_TOPIC[n.topic] || 'Chuyên đề'} · ${ticker} · Dữ liệu đến ${dateText(n.cutoff)}`} title={n.title}
             sub={`Thời điểm đánh giá ${dateText(n.as_of)} · Công bố ${dateText(n.published_at)}${n.note_version > 1 ? ` · Phiên bản ${n.note_version}` : ''}`} />
           <div className="rl-status-line">
             <Badge map={NOTE_OUTCOME} value={n.outcome} code={false} />
