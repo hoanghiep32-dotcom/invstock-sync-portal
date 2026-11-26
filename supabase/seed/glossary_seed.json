@@ -1,0 +1,761 @@
+[
+ {
+  "term": "ROE",
+  "full_name": "Return on Equity",
+  "vi_name": "Tỷ suất lợi nhuận trên vốn chủ sở hữu",
+  "industry": "general",
+  "short_def": "Lợi nhuận sau thuế chia cho vốn chủ sở hữu bình quân. Cho biết mỗi đồng vốn của cổ đông tạo ra bao nhiêu lợi nhuận trong một năm.",
+  "formula": "ROE = LNST của cổ đông công ty mẹ / Vốn chủ sở hữu bình quân",
+  "body": "ROE cao và ổn định qua nhiều năm thường là dấu hiệu của lợi thế cạnh tranh. Cần xem ROE đến từ biên lợi nhuận, vòng quay tài sản hay đòn bẩy (phân tích DuPont): ROE cao nhờ vay nợ nhiều thì rủi ro hơn ROE cao nhờ biên lợi nhuận tốt.",
+  "related": [
+   "ROA",
+   "ROIC",
+   "D/E"
+  ]
+ },
+ {
+  "term": "ROA",
+  "full_name": "Return on Assets",
+  "vi_name": "Tỷ suất lợi nhuận trên tổng tài sản",
+  "industry": "general",
+  "short_def": "Lợi nhuận sau thuế chia cho tổng tài sản bình quân. Đo hiệu quả sử dụng toàn bộ tài sản, không phụ thuộc cơ cấu vốn.",
+  "formula": "ROA = LNST / Tổng tài sản bình quân",
+  "body": "Với ngân hàng, ROA khoảng 1,5–2% đã được xem là tốt vì đòn bẩy rất cao. Với doanh nghiệp sản xuất, nên so ROA với doanh nghiệp cùng ngành.",
+  "related": [
+   "ROE"
+  ]
+ },
+ {
+  "term": "ROIC",
+  "full_name": "Return on Invested Capital",
+  "vi_name": "Tỷ suất lợi nhuận trên vốn đầu tư",
+  "industry": "general",
+  "short_def": "Lợi nhuận hoạt động sau thuế (NOPAT) chia cho vốn đầu tư (vốn chủ + nợ vay − tiền mặt dư). Doanh nghiệp tạo giá trị khi ROIC lớn hơn WACC.",
+  "formula": "ROIC = EBIT × (1 − thuế suất) / (Vốn chủ sở hữu + Nợ vay − Tiền mặt dư thừa)",
+  "related": [
+   "WACC",
+   "ROE",
+   "EBIT"
+  ]
+ },
+ {
+  "term": "EPS",
+  "full_name": "Earnings Per Share",
+  "vi_name": "Lợi nhuận trên mỗi cổ phiếu",
+  "industry": "general",
+  "short_def": "Lợi nhuận sau thuế thuộc cổ đông công ty mẹ (sau khi trừ quỹ khen thưởng phúc lợi nếu có) chia cho số cổ phiếu lưu hành bình quân.",
+  "formula": "EPS = LNST cổ đông công ty mẹ / Số cổ phiếu lưu hành bình quân",
+  "body": "EPS pha loãng tính thêm cổ phiếu có thể phát sinh từ trái phiếu chuyển đổi, ESOP. Khi so sánh EPS qua các năm cần điều chỉnh cho các đợt chia cổ tức bằng cổ phiếu, phát hành thêm.",
+  "related": [
+   "P/E"
+  ]
+ },
+ {
+  "term": "BVPS",
+  "full_name": "Book Value Per Share",
+  "vi_name": "Giá trị sổ sách mỗi cổ phiếu",
+  "industry": "general",
+  "short_def": "Vốn chủ sở hữu (không gồm lợi ích cổ đông không kiểm soát) chia cho số cổ phiếu đang lưu hành.",
+  "related": [
+   "P/B"
+  ]
+ },
+ {
+  "term": "LNST",
+  "full_name": "Lợi nhuận sau thuế",
+  "vi_name": "Lợi nhuận sau thuế",
+  "industry": "general",
+  "aliases": [
+   "lợi nhuận sau thuế"
+  ],
+  "match_case": true,
+  "short_def": "Lợi nhuận còn lại sau khi trừ toàn bộ chi phí và thuế thu nhập doanh nghiệp. Trong báo cáo thường tách phần thuộc cổ đông công ty mẹ.",
+  "related": [
+   "EPS",
+   "ROE"
+  ]
+ },
+ {
+  "term": "LNTT",
+  "full_name": "Lợi nhuận trước thuế",
+  "vi_name": "Lợi nhuận trước thuế",
+  "industry": "general",
+  "aliases": [
+   "lợi nhuận trước thuế"
+  ],
+  "short_def": "Lợi nhuận kế toán trước khi trừ thuế thu nhập doanh nghiệp, gồm cả lợi nhuận hoạt động chính, tài chính và khác.",
+  "related": [
+   "LNST",
+   "EBIT"
+  ]
+ },
+ {
+  "term": "ESOP",
+  "full_name": "Employee Stock Ownership Plan",
+  "vi_name": "Cổ phiếu thưởng/ưu đãi cho người lao động",
+  "industry": "general",
+  "short_def": "Chương trình phát hành cổ phiếu cho nhân viên, thường giá thấp hơn thị trường. Làm tăng số cổ phiếu và pha loãng EPS của cổ đông hiện hữu.",
+  "related": [
+   "EPS"
+  ]
+ },
+ {
+  "term": "BCTC",
+  "full_name": "Báo cáo tài chính",
+  "vi_name": "Báo cáo tài chính",
+  "industry": "general",
+  "short_def": "Bộ báo cáo gồm bảng cân đối kế toán, kết quả kinh doanh, lưu chuyển tiền tệ và thuyết minh. BCTC kiểm toán năm và soát xét bán niên có độ tin cậy cao hơn BCTC quý tự lập."
+ },
+ {
+  "term": "EBIT",
+  "full_name": "Earnings Before Interest and Taxes",
+  "vi_name": "Lợi nhuận trước lãi vay và thuế",
+  "industry": "general",
+  "short_def": "Lợi nhuận từ hoạt động kinh doanh trước khi trừ chi phí lãi vay và thuế. Dùng để so sánh hiệu quả hoạt động giữa các doanh nghiệp có cơ cấu vốn khác nhau.",
+  "formula": "EBIT = LNTT + Chi phí lãi vay",
+  "related": [
+   "EBITDA",
+   "ROIC"
+  ]
+ },
+ {
+  "term": "EBITDA",
+  "full_name": "Earnings Before Interest, Taxes, Depreciation and Amortization",
+  "vi_name": "Lợi nhuận trước lãi vay, thuế và khấu hao",
+  "industry": "general",
+  "short_def": "EBIT cộng lại khấu hao tài sản cố định và phân bổ. Gần đúng với dòng tiền hoạt động trước vốn lưu động, hay dùng cho doanh nghiệp nhiều tài sản cố định.",
+  "formula": "EBITDA = EBIT + Khấu hao + Phân bổ",
+  "body": "EBITDA bỏ qua nhu cầu đầu tư thay thế tài sản (CAPEX), nên với doanh nghiệp thâm dụng vốn cần xem thêm FCF.",
+  "related": [
+   "EBIT",
+   "EV/EBITDA",
+   "FCF"
+  ]
+ },
+ {
+  "term": "FCF",
+  "full_name": "Free Cash Flow",
+  "vi_name": "Dòng tiền tự do",
+  "industry": "general",
+  "short_def": "Dòng tiền từ hoạt động kinh doanh trừ chi đầu tư tài sản cố định (CAPEX). Là tiền thực sự có thể dùng trả nợ, chia cổ tức hoặc tái đầu tư.",
+  "formula": "FCF = CFO − CAPEX",
+  "related": [
+   "CFO",
+   "CAPEX",
+   "FCFF",
+   "FCFE"
+  ]
+ },
+ {
+  "term": "CFO",
+  "full_name": "Cash Flow from Operations",
+  "vi_name": "Lưu chuyển tiền thuần từ hoạt động kinh doanh",
+  "industry": "general",
+  "short_def": "Tiền thu chi thực tế từ hoạt động kinh doanh chính trong kỳ. CFO thấp hơn nhiều so với LNST kéo dài là dấu hiệu cần soi chất lượng lợi nhuận.",
+  "related": [
+   "FCF",
+   "LNST"
+  ]
+ },
+ {
+  "term": "CAPEX",
+  "full_name": "Capital Expenditure",
+  "vi_name": "Chi đầu tư tài sản cố định",
+  "industry": "general",
+  "aliases": [
+   "Capex",
+   "capex"
+  ],
+  "short_def": "Tiền chi mua sắm, xây dựng tài sản cố định và tài sản dài hạn để duy trì hoặc mở rộng năng lực sản xuất kinh doanh.",
+  "related": [
+   "FCF"
+  ]
+ },
+ {
+  "term": "CAGR",
+  "full_name": "Compound Annual Growth Rate",
+  "vi_name": "Tốc độ tăng trưởng kép hằng năm",
+  "industry": "general",
+  "short_def": "Tốc độ tăng trưởng bình quân mỗi năm nếu tăng đều theo lãi kép trong một giai đoạn.",
+  "formula": "CAGR = (Giá trị cuối / Giá trị đầu)^(1 / số năm) − 1"
+ },
+ {
+  "term": "YoY",
+  "full_name": "Year over Year",
+  "vi_name": "So với cùng kỳ năm trước",
+  "industry": "general",
+  "aliases": [
+   "yoy"
+  ],
+  "short_def": "Mức thay đổi so với cùng kỳ năm trước, ví dụ quý 3 năm nay so với quý 3 năm ngoái. Loại bỏ được yếu tố mùa vụ."
+ },
+ {
+  "term": "QoQ",
+  "full_name": "Quarter over Quarter",
+  "vi_name": "So với quý liền trước",
+  "industry": "general",
+  "aliases": [
+   "qoq"
+  ],
+  "short_def": "Mức thay đổi so với quý liền trước. Phản ánh xu hướng ngắn hạn nhưng chịu ảnh hưởng của mùa vụ."
+ },
+ {
+  "term": "TTM",
+  "full_name": "Trailing Twelve Months",
+  "vi_name": "12 tháng gần nhất",
+  "industry": "general",
+  "short_def": "Tổng số liệu của 4 quý gần nhất. Hay dùng để tính P/E, ROE cập nhật hơn số liệu năm tài chính."
+ },
+ {
+  "term": "D/E",
+  "full_name": "Debt to Equity",
+  "vi_name": "Tỷ lệ nợ vay trên vốn chủ sở hữu",
+  "industry": "general",
+  "short_def": "Nợ vay có chịu lãi chia cho vốn chủ sở hữu. Đo mức đòn bẩy tài chính; một số báo cáo dùng tổng nợ phải trả thay cho nợ vay.",
+  "formula": "D/E = (Vay ngắn hạn + Vay dài hạn) / Vốn chủ sở hữu",
+  "related": [
+   "ROE"
+  ]
+ },
+ {
+  "term": "CCC",
+  "full_name": "Cash Conversion Cycle",
+  "vi_name": "Chu kỳ chuyển đổi tiền mặt",
+  "industry": "general",
+  "short_def": "Số ngày từ khi doanh nghiệp chi tiền mua hàng đến khi thu tiền bán hàng. CCC càng ngắn, doanh nghiệp càng ít cần vốn lưu động.",
+  "formula": "CCC = Số ngày tồn kho (DIO) + Số ngày phải thu (DSO) − Số ngày phải trả (DPO)"
+ },
+ {
+  "term": "P/E",
+  "full_name": "Price to Earnings",
+  "vi_name": "Hệ số giá trên lợi nhuận",
+  "industry": "valuation",
+  "short_def": "Giá cổ phiếu chia cho EPS. Cho biết nhà đầu tư đang trả bao nhiêu đồng cho một đồng lợi nhuận của doanh nghiệp.",
+  "formula": "P/E = Giá cổ phiếu / EPS (thường dùng EPS 4 quý gần nhất hoặc EPS dự phóng)",
+  "body": "P/E chỉ có ý nghĩa khi so với lịch sử của chính doanh nghiệp, với doanh nghiệp cùng ngành và với tốc độ tăng trưởng (PEG). P/E thấp có thể do thị trường kỳ vọng lợi nhuận giảm.",
+  "related": [
+   "EPS",
+   "PEG",
+   "P/B"
+  ]
+ },
+ {
+  "term": "P/B",
+  "full_name": "Price to Book",
+  "vi_name": "Hệ số giá trên giá trị sổ sách",
+  "industry": "valuation",
+  "short_def": "Giá cổ phiếu chia cho giá trị sổ sách mỗi cổ phiếu (BVPS). Hay dùng cho ngân hàng, chứng khoán, bảo hiểm vì tài sản chủ yếu là tài sản tài chính.",
+  "formula": "P/B = Giá cổ phiếu / BVPS",
+  "related": [
+   "BVPS",
+   "ROE"
+  ]
+ },
+ {
+  "term": "PEG",
+  "full_name": "Price/Earnings to Growth",
+  "vi_name": "P/E so với tăng trưởng",
+  "industry": "valuation",
+  "short_def": "P/E chia cho tốc độ tăng trưởng EPS kỳ vọng (tính bằng %). PEG quanh 1 thường được xem là hợp lý với tăng trưởng.",
+  "formula": "PEG = P/E / Tăng trưởng EPS (%)",
+  "related": [
+   "P/E"
+  ]
+ },
+ {
+  "term": "EV/EBITDA",
+  "full_name": "Enterprise Value to EBITDA",
+  "vi_name": "Giá trị doanh nghiệp trên EBITDA",
+  "industry": "valuation",
+  "short_def": "Giá trị doanh nghiệp (vốn hóa + nợ vay − tiền mặt) chia cho EBITDA. Không bị ảnh hưởng bởi cơ cấu vốn và chính sách khấu hao, tiện so sánh giữa các doanh nghiệp.",
+  "formula": "EV = Vốn hóa + Nợ vay + Lợi ích CĐ không kiểm soát − Tiền và tương đương tiền",
+  "related": [
+   "EBITDA"
+  ]
+ },
+ {
+  "term": "DCF",
+  "full_name": "Discounted Cash Flow",
+  "vi_name": "Chiết khấu dòng tiền",
+  "industry": "valuation",
+  "short_def": "Phương pháp định giá bằng cách dự phóng dòng tiền tương lai rồi chiết khấu về hiện tại theo chi phí vốn. Kết quả rất nhạy với tăng trưởng dài hạn và tỷ lệ chiết khấu.",
+  "body": "Có hai dạng phổ biến: FCFF chiết khấu bằng WACC để ra giá trị doanh nghiệp, hoặc FCFE chiết khấu bằng chi phí vốn chủ để ra giá trị vốn chủ. Giá trị cuối kỳ (terminal value) thường chiếm phần lớn kết quả nên cần kiểm tra độ nhạy.",
+  "related": [
+   "WACC",
+   "FCFF",
+   "FCFE"
+  ]
+ },
+ {
+  "term": "WACC",
+  "full_name": "Weighted Average Cost of Capital",
+  "vi_name": "Chi phí vốn bình quân gia quyền",
+  "industry": "valuation",
+  "short_def": "Chi phí vốn bình quân của nợ vay (sau thuế) và vốn chủ sở hữu, theo tỷ trọng. Dùng làm tỷ lệ chiết khấu trong DCF dòng tiền FCFF.",
+  "formula": "WACC = E/(D+E) × Ke + D/(D+E) × Kd × (1 − t)",
+  "related": [
+   "DCF",
+   "ROIC"
+  ]
+ },
+ {
+  "term": "FCFF",
+  "full_name": "Free Cash Flow to Firm",
+  "vi_name": "Dòng tiền tự do của doanh nghiệp",
+  "industry": "valuation",
+  "short_def": "Dòng tiền còn lại cho cả chủ nợ và cổ đông sau khi trừ thuế, đầu tư tài sản cố định và vốn lưu động.",
+  "formula": "FCFF = EBIT × (1 − t) + Khấu hao − CAPEX − Thay đổi vốn lưu động",
+  "related": [
+   "FCFE",
+   "DCF"
+  ]
+ },
+ {
+  "term": "FCFE",
+  "full_name": "Free Cash Flow to Equity",
+  "vi_name": "Dòng tiền tự do của vốn chủ sở hữu",
+  "industry": "valuation",
+  "short_def": "Dòng tiền còn lại cho cổ đông sau khi đã trả lãi, trả gốc và vay thêm.",
+  "formula": "FCFE = FCFF − Lãi vay × (1 − t) + Vay ròng",
+  "related": [
+   "FCFF",
+   "DCF"
+  ]
+ },
+ {
+  "term": "MOS",
+  "full_name": "Margin of Safety",
+  "vi_name": "Biên an toàn",
+  "industry": "valuation",
+  "short_def": "Khoảng chênh giữa giá trị hợp lý ước tính và giá thị trường, tính theo % giá trị hợp lý. MOS càng lớn thì càng có đệm cho sai số định giá.",
+  "formula": "MOS = (Giá trị hợp lý − Giá hiện tại) / Giá trị hợp lý",
+  "related": [
+   "DCF"
+  ]
+ },
+ {
+  "term": "DDM",
+  "full_name": "Dividend Discount Model",
+  "vi_name": "Mô hình chiết khấu cổ tức",
+  "industry": "valuation",
+  "short_def": "Định giá cổ phiếu bằng giá trị hiện tại của cổ tức kỳ vọng. Phù hợp với doanh nghiệp chia cổ tức tiền mặt đều đặn."
+ },
+ {
+  "term": "NIM",
+  "full_name": "Net Interest Margin",
+  "vi_name": "Biên lãi ròng",
+  "industry": "banking",
+  "short_def": "Thu nhập lãi thuần chia cho tài sản sinh lãi bình quân. Đo khả năng kiếm lời từ chênh lệch lãi cho vay và lãi huy động của ngân hàng.",
+  "formula": "NIM = Thu nhập lãi thuần / Tài sản sinh lãi bình quân",
+  "body": "NIM phụ thuộc vào cơ cấu cho vay (bán lẻ thường cao hơn doanh nghiệp lớn), tỷ lệ CASA và chi phí vốn. NIM cao đi kèm cho vay rủi ro cao có thể làm tăng chi phí tín dụng sau này.",
+  "related": [
+   "CASA",
+   "CoF",
+   "YOEA"
+  ]
+ },
+ {
+  "term": "CASA",
+  "full_name": "Current Account Savings Account",
+  "vi_name": "Tiền gửi không kỳ hạn",
+  "industry": "banking",
+  "aliases": [
+   "tỷ lệ CASA"
+  ],
+  "short_def": "Tiền gửi không kỳ hạn (và tiền gửi thanh toán) của khách hàng. Tỷ lệ CASA là CASA chia cho tổng tiền gửi; CASA cao giúp ngân hàng có nguồn vốn rẻ.",
+  "formula": "Tỷ lệ CASA = Tiền gửi không kỳ hạn / Tổng tiền gửi khách hàng",
+  "related": [
+   "NIM",
+   "CoF"
+  ]
+ },
+ {
+  "term": "LDR",
+  "full_name": "Loan to Deposit Ratio",
+  "vi_name": "Tỷ lệ cho vay trên huy động",
+  "industry": "banking",
+  "short_def": "Dư nợ cho vay chia cho tiền gửi huy động. Phản ánh mức sử dụng vốn huy động; NHNN giới hạn tỷ lệ này (theo cách tính riêng) đối với ngân hàng thương mại.",
+  "formula": "LDR = Dư nợ cho vay / Tiền gửi khách hàng (cách tính theo quy định NHNN có điều chỉnh các khoản mục)",
+  "related": [
+   "CASA"
+  ]
+ },
+ {
+  "term": "NPL",
+  "full_name": "Non-Performing Loan",
+  "vi_name": "Nợ xấu",
+  "industry": "banking",
+  "aliases": [
+   "tỷ lệ nợ xấu"
+  ],
+  "short_def": "Khoản vay thuộc nhóm 3 đến nhóm 5 (dưới tiêu chuẩn, nghi ngờ, có khả năng mất vốn). Tỷ lệ nợ xấu là nợ xấu chia cho tổng dư nợ.",
+  "formula": "Tỷ lệ nợ xấu = Nợ nhóm 3–5 / Tổng dư nợ cho vay",
+  "body": "Nên xem cùng nợ nhóm 2 (nợ cần chú ý), nợ tái cơ cấu, nợ bán cho VAMC và tỷ lệ bao phủ nợ xấu (LLR) để thấy đầy đủ chất lượng tài sản.",
+  "related": [
+   "LLR",
+   "Credit cost"
+  ]
+ },
+ {
+  "term": "LLR",
+  "full_name": "Loan Loss Reserve coverage",
+  "vi_name": "Tỷ lệ bao phủ nợ xấu",
+  "industry": "banking",
+  "aliases": [
+   "tỷ lệ bao phủ nợ xấu"
+  ],
+  "short_def": "Dự phòng rủi ro cho vay chia cho nợ xấu. Tỷ lệ trên 100% nghĩa là dự phòng đã đủ bù toàn bộ nợ xấu hiện có.",
+  "formula": "LLR = Dự phòng rủi ro cho vay khách hàng / Nợ xấu (nhóm 3–5)",
+  "related": [
+   "NPL",
+   "Credit cost"
+  ]
+ },
+ {
+  "term": "CIR",
+  "full_name": "Cost to Income Ratio",
+  "vi_name": "Tỷ lệ chi phí trên thu nhập",
+  "industry": "banking",
+  "short_def": "Chi phí hoạt động chia cho tổng thu nhập hoạt động (TOI). CIR càng thấp, ngân hàng vận hành càng hiệu quả.",
+  "formula": "CIR = Chi phí hoạt động / Tổng thu nhập hoạt động",
+  "related": [
+   "TOI",
+   "PPOP"
+  ]
+ },
+ {
+  "term": "CAR",
+  "full_name": "Capital Adequacy Ratio",
+  "vi_name": "Tỷ lệ an toàn vốn",
+  "industry": "banking",
+  "short_def": "Vốn tự có chia cho tài sản có rủi ro quy đổi. Ngân hàng phải duy trì tối thiểu 8% theo chuẩn Basel II áp dụng tại Việt Nam; CAR thấp giới hạn khả năng tăng trưởng tín dụng.",
+  "related": [
+   "Basel II"
+  ]
+ },
+ {
+  "term": "Basel II",
+  "full_name": "Basel II",
+  "vi_name": "Chuẩn an toàn vốn Basel II",
+  "industry": "banking",
+  "match_case": false,
+  "short_def": "Bộ chuẩn quốc tế về quản trị rủi ro và an toàn vốn của ngân hàng, gồm 3 trụ cột: vốn tối thiểu, giám sát và công bố thông tin.",
+  "related": [
+   "CAR"
+  ]
+ },
+ {
+  "term": "CoF",
+  "full_name": "Cost of Funds",
+  "vi_name": "Chi phí vốn huy động",
+  "industry": "banking",
+  "aliases": [
+   "COF"
+  ],
+  "short_def": "Chi phí lãi phải trả chia cho nguồn vốn chịu lãi bình quân. CoF thấp nhờ CASA cao là lợi thế lớn của ngân hàng.",
+  "related": [
+   "NIM",
+   "CASA"
+  ]
+ },
+ {
+  "term": "YOEA",
+  "full_name": "Yield on Earning Assets",
+  "vi_name": "Lợi suất tài sản sinh lãi",
+  "industry": "banking",
+  "short_def": "Thu nhập lãi chia cho tài sản sinh lãi bình quân. NIM xấp xỉ bằng YOEA trừ chi phí vốn tính trên tài sản sinh lãi.",
+  "related": [
+   "NIM",
+   "CoF"
+  ]
+ },
+ {
+  "term": "TOI",
+  "full_name": "Total Operating Income",
+  "vi_name": "Tổng thu nhập hoạt động",
+  "industry": "banking",
+  "short_def": "Tổng thu nhập lãi thuần và thu nhập ngoài lãi (phí dịch vụ, kinh doanh ngoại hối, chứng khoán, thu nhập khác) của ngân hàng.",
+  "related": [
+   "CIR",
+   "PPOP"
+  ]
+ },
+ {
+  "term": "PPOP",
+  "full_name": "Pre-Provision Operating Profit",
+  "vi_name": "Lợi nhuận trước dự phòng",
+  "industry": "banking",
+  "short_def": "Lợi nhuận hoạt động trước khi trích lập dự phòng rủi ro tín dụng. Cho thấy năng lực tạo lợi nhuận cốt lõi trước tác động của nợ xấu.",
+  "formula": "PPOP = TOI − Chi phí hoạt động",
+  "related": [
+   "TOI",
+   "Credit cost"
+  ]
+ },
+ {
+  "term": "Credit cost",
+  "full_name": "Credit cost",
+  "vi_name": "Chi phí tín dụng",
+  "industry": "banking",
+  "aliases": [
+   "chi phí tín dụng"
+  ],
+  "match_case": false,
+  "short_def": "Chi phí dự phòng rủi ro tín dụng trong kỳ chia cho dư nợ cho vay bình quân. Tăng mạnh khi chất lượng tài sản xấu đi.",
+  "related": [
+   "NPL",
+   "LLR"
+  ]
+ },
+ {
+  "term": "Nợ nhóm 2",
+  "full_name": "Special mention loans",
+  "vi_name": "Nợ cần chú ý",
+  "industry": "banking",
+  "aliases": [
+   "nợ nhóm 2"
+  ],
+  "match_case": false,
+  "short_def": "Khoản vay quá hạn từ 10 đến 90 ngày hoặc có dấu hiệu suy giảm khả năng trả nợ. Chưa phải nợ xấu nhưng là chỉ báo sớm của nợ xấu.",
+  "related": [
+   "NPL"
+  ]
+ },
+ {
+  "term": "Margin",
+  "full_name": "Margin lending",
+  "vi_name": "Cho vay ký quỹ",
+  "industry": "securities",
+  "aliases": [
+   "dư nợ margin",
+   "cho vay ký quỹ"
+  ],
+  "short_def": "Công ty chứng khoán cho nhà đầu tư vay tiền để mua chứng khoán, dùng chính chứng khoán làm tài sản bảo đảm. Là nguồn thu lãi lớn của công ty chứng khoán.",
+  "related": [
+   "FVTPL"
+  ]
+ },
+ {
+  "term": "FVTPL",
+  "full_name": "Financial assets at Fair Value Through Profit or Loss",
+  "vi_name": "Tài sản tài chính ghi nhận theo giá trị hợp lý qua lãi/lỗ",
+  "industry": "securities",
+  "short_def": "Danh mục tự doanh được đánh giá lại theo giá thị trường và đưa chênh lệch vào kết quả kinh doanh. Làm lợi nhuận công ty chứng khoán biến động theo thị trường.",
+  "related": [
+   "AFS",
+   "HTM"
+  ]
+ },
+ {
+  "term": "AFS",
+  "full_name": "Available-for-Sale financial assets",
+  "vi_name": "Tài sản tài chính sẵn sàng để bán",
+  "industry": "securities",
+  "short_def": "Tài sản tài chính không thuộc nhóm FVTPL hay HTM; chênh lệch đánh giá lại ghi vào vốn chủ sở hữu (thu nhập toàn diện khác) thay vì lãi/lỗ.",
+  "related": [
+   "FVTPL",
+   "HTM"
+  ]
+ },
+ {
+  "term": "HTM",
+  "full_name": "Held-to-Maturity investments",
+  "vi_name": "Đầu tư nắm giữ đến ngày đáo hạn",
+  "industry": "securities",
+  "short_def": "Khoản đầu tư có kỳ hạn cố định (tiền gửi, trái phiếu) mà doanh nghiệp có ý định giữ đến khi đáo hạn, ghi nhận theo giá trị phân bổ.",
+  "related": [
+   "FVTPL",
+   "AFS"
+  ]
+ },
+ {
+  "term": "Combined ratio",
+  "full_name": "Combined ratio",
+  "vi_name": "Tỷ lệ kết hợp",
+  "industry": "insurance",
+  "aliases": [
+   "tỷ lệ kết hợp"
+  ],
+  "match_case": false,
+  "short_def": "Tổng tỷ lệ bồi thường và tỷ lệ chi phí của doanh nghiệp bảo hiểm phi nhân thọ. Dưới 100% nghĩa là hoạt động bảo hiểm gốc có lãi trước thu nhập đầu tư.",
+  "formula": "Combined ratio = Tỷ lệ bồi thường + Tỷ lệ chi phí",
+  "related": [
+   "Loss ratio"
+  ]
+ },
+ {
+  "term": "Loss ratio",
+  "full_name": "Loss ratio",
+  "vi_name": "Tỷ lệ bồi thường",
+  "industry": "insurance",
+  "aliases": [
+   "tỷ lệ bồi thường"
+  ],
+  "match_case": false,
+  "short_def": "Chi bồi thường chia cho phí bảo hiểm được hưởng trong kỳ.",
+  "related": [
+   "Combined ratio"
+  ]
+ },
+ {
+  "term": "Presales",
+  "full_name": "Presales",
+  "vi_name": "Doanh số bán hàng trước",
+  "industry": "real_estate",
+  "aliases": [
+   "presales",
+   "doanh số bán trước"
+  ],
+  "short_def": "Giá trị hợp đồng mua bán bất động sản đã ký nhưng chưa bàn giao nên chưa ghi nhận doanh thu. Là chỉ báo sớm cho doanh thu các năm tới.",
+  "related": [
+   "Backlog",
+   "RNAV"
+  ]
+ },
+ {
+  "term": "RNAV",
+  "full_name": "Revalued Net Asset Value",
+  "vi_name": "Giá trị tài sản ròng đánh giá lại",
+  "industry": "real_estate",
+  "short_def": "Giá trị tài sản (chủ yếu là quỹ đất, dự án) đánh giá lại theo giá thị trường, trừ nợ phải trả. Phương pháp định giá phổ biến cho doanh nghiệp bất động sản.",
+  "related": [
+   "Quỹ đất"
+  ]
+ },
+ {
+  "term": "Quỹ đất",
+  "full_name": "Land bank",
+  "vi_name": "Quỹ đất",
+  "industry": "real_estate",
+  "aliases": [
+   "quỹ đất"
+  ],
+  "match_case": false,
+  "short_def": "Tổng diện tích đất doanh nghiệp đang sở hữu hoặc có quyền phát triển. Cần xem tình trạng pháp lý, chi phí đất đã trả và vị trí, không chỉ diện tích.",
+  "related": [
+   "RNAV"
+  ]
+ },
+ {
+  "term": "Backlog",
+  "full_name": "Order backlog",
+  "vi_name": "Giá trị hợp đồng chưa thực hiện",
+  "industry": "construction",
+  "aliases": [
+   "backlog"
+  ],
+  "short_def": "Giá trị các hợp đồng đã ký nhưng chưa thực hiện xong. Backlog lớn so với doanh thu năm cho thấy doanh nghiệp có việc làm trong vài năm tới.",
+  "related": [
+   "Book-to-bill",
+   "EPC"
+  ]
+ },
+ {
+  "term": "Book-to-bill",
+  "full_name": "Book-to-bill ratio",
+  "vi_name": "Tỷ lệ hợp đồng mới trên doanh thu",
+  "industry": "construction",
+  "match_case": false,
+  "short_def": "Giá trị hợp đồng ký mới chia cho doanh thu ghi nhận trong kỳ. Trên 1 nghĩa là backlog đang tăng lên.",
+  "related": [
+   "Backlog"
+  ]
+ },
+ {
+  "term": "EPC",
+  "full_name": "Engineering, Procurement and Construction",
+  "vi_name": "Thiết kế, mua sắm và thi công",
+  "industry": "construction",
+  "short_def": "Hình thức tổng thầu chịu trách nhiệm cả thiết kế, mua sắm thiết bị và thi công, bàn giao công trình hoàn chỉnh cho chủ đầu tư."
+ },
+ {
+  "term": "Công suất",
+  "full_name": "Capacity utilization",
+  "vi_name": "Hiệu suất sử dụng công suất",
+  "industry": "manufacturing",
+  "aliases": [
+   "hiệu suất sử dụng công suất"
+  ],
+  "match_case": false,
+  "auto_link": false,
+  "short_def": "Sản lượng thực tế chia cho công suất thiết kế. Hiệu suất cao giúp phân bổ chi phí cố định, cải thiện biên lợi nhuận gộp.",
+  "related": [
+   "Biên lợi nhuận gộp"
+  ]
+ },
+ {
+  "term": "Biên lợi nhuận gộp",
+  "full_name": "Gross margin",
+  "vi_name": "Biên lợi nhuận gộp",
+  "industry": "manufacturing",
+  "aliases": [
+   "biên lợi nhuận gộp",
+   "biên gộp"
+  ],
+  "match_case": false,
+  "short_def": "Lợi nhuận gộp chia cho doanh thu thuần. Phản ánh khả năng định giá bán và kiểm soát giá vốn (nguyên vật liệu, nhân công, khấu hao).",
+  "formula": "Biên gộp = (Doanh thu thuần − Giá vốn hàng bán) / Doanh thu thuần"
+ },
+ {
+  "term": "PPA",
+  "full_name": "Power Purchase Agreement",
+  "vi_name": "Hợp đồng mua bán điện",
+  "industry": "energy",
+  "short_def": "Hợp đồng dài hạn giữa nhà máy điện và bên mua (thường là EVN) quy định giá, sản lượng và thời hạn mua điện.",
+  "related": [
+   "FIT"
+  ]
+ },
+ {
+  "term": "FIT",
+  "full_name": "Feed-in Tariff",
+  "vi_name": "Giá điện hỗ trợ cố định",
+  "industry": "energy",
+  "short_def": "Cơ chế giá mua điện cố định trong thời gian dài (thường 20 năm) để khuyến khích điện mặt trời, điện gió.",
+  "related": [
+   "PPA"
+  ]
+ },
+ {
+  "term": "SSSG",
+  "full_name": "Same-Store Sales Growth",
+  "vi_name": "Tăng trưởng doanh thu cửa hàng hiện hữu",
+  "industry": "consumer",
+  "short_def": "Tăng trưởng doanh thu của các cửa hàng đã hoạt động ít nhất một năm, loại trừ tác động mở mới. Đo sức khỏe thực của chuỗi bán lẻ."
+ },
+ {
+  "term": "Free float",
+  "full_name": "Free float",
+  "vi_name": "Tỷ lệ cổ phiếu tự do chuyển nhượng",
+  "industry": "market",
+  "aliases": [
+   "free-float"
+  ],
+  "match_case": false,
+  "short_def": "Phần cổ phiếu có thể giao dịch tự do trên thị trường, không tính cổ phiếu của cổ đông chiến lược, nhà nước, nội bộ hoặc bị hạn chế chuyển nhượng.",
+  "related": [
+   "ADTV"
+  ]
+ },
+ {
+  "term": "ADTV",
+  "full_name": "Average Daily Trading Value",
+  "vi_name": "Giá trị giao dịch bình quân ngày",
+  "industry": "market",
+  "short_def": "Giá trị giao dịch bình quân mỗi phiên trong một khoảng thời gian (ví dụ 20 phiên). Đo thanh khoản cổ phiếu.",
+  "related": [
+   "Free float"
+  ]
+ },
+ {
+  "term": "Room ngoại",
+  "full_name": "Foreign ownership limit",
+  "vi_name": "Giới hạn sở hữu nước ngoài",
+  "industry": "market",
+  "aliases": [
+   "room ngoại"
+  ],
+  "match_case": false,
+  "short_def": "Tỷ lệ sở hữu tối đa của nhà đầu tư nước ngoài tại một doanh nghiệp. Khi hết room, cổ phiếu có thể giao dịch thỏa thuận với giá cao hơn thị trường."
+ }
+]

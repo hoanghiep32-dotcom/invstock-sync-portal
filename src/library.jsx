@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import './style.css'
 import { supabase, SUPABASE_URL, SUPABASE_KEY } from './supabaseClient.js'
+import { GlossaryProvider, GlossaryScope, GlossaryPage, Term } from './glossary.jsx'
 
 // Thư viện công khai v2 – giao diện đọc.
 // Chỉ đọc bản đã xuất bản qua Edge Function public-research-library.
@@ -143,7 +144,7 @@ function Refs({ ids }) {
 
 function Gaps({ items, title = 'Còn thiếu' }) {
   if (!items?.length) return null
-  return <div className="rl-gaps"><strong>{title}</strong><ul>{items.map((g, i) => <li key={i}>{g}</li>)}</ul></div>
+  return <div className="rl-gaps"><strong>{title}</strong><ul>{items.map((g, i) => <li key={i}><Term>{g}</Term></li>)}</ul></div>
 }
 
 /* ---------- Khung trang ---------- */
@@ -156,7 +157,7 @@ function TopBar({ children, progress }) {
         <span className="rl-brand-text"><strong>INVSTOCK TRACKER</strong><small>INVESTMENT RESEARCH</small></span>
       </a>
       <div className="rl-topbar-mid">{children}</div>
-      <nav className="rl-topbar-nav"><a href="/admin">Admin</a></nav>
+      <nav className="rl-topbar-nav"><a href="/thuat-ngu">Thuật ngữ</a><a href="/admin">Admin</a></nav>
     </div>
     {progress !== undefined && <div className="rl-progress" style={{ transform: `scaleX(${progress})` }} />}
   </header>
@@ -494,12 +495,12 @@ function ReportSection({ id, title, kicker, children }) {
 
 function Prose({ text }) {
   if (!text) return null
-  return <div className="rl-prose">{String(text).split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+  return <div className="rl-prose">{String(text).split(/\n{2,}/).map((p, i) => <p key={i}><Term>{p}</Term></p>)}</div>
 }
 
 function BulletList({ items, tone = '' }) {
   if (!items?.length) return <p className="rl-muted">Không có.</p>
-  return <ul className={`rl-bullets ${tone}`}>{items.map((x, i) => <li key={i}>{x}</li>)}</ul>
+  return <ul className={`rl-bullets ${tone}`}>{items.map((x, i) => <li key={i}><Term>{x}</Term></li>)}</ul>
 }
 
 /* ---------- Các khối của Full Research ---------- */
@@ -550,9 +551,9 @@ function ThesisBlock({ decision }) {
       <div className="rl-panel"><h3>Khi nào luận điểm sai</h3><BulletList items={decision.invalidation} /></div>
     </div>
     <dl className="rl-deflist">
-      {decision.investment_type && <div><dt>Loại cơ hội</dt><dd>{decision.investment_type}</dd></div>}
-      {decision.horizon && <div><dt>Khung thời gian</dt><dd>{decision.horizon}</dd></div>}
-      {decision.position_context && <div><dt>Bối cảnh vị thế</dt><dd>{decision.position_context}</dd></div>}
+      {decision.investment_type && <div><dt>Loại cơ hội</dt><dd><Term>{decision.investment_type}</Term></dd></div>}
+      {decision.horizon && <div><dt>Khung thời gian</dt><dd><Term>{decision.horizon}</Term></dd></div>}
+      {decision.position_context && <div><dt>Bối cảnh vị thế</dt><dd><Term>{decision.position_context}</Term></dd></div>}
     </dl>
   </>
 }
@@ -587,10 +588,10 @@ function ValuationBlock({ v }) {
         <div className="rl-scen-head"><h3>Kịch bản {names[s.k].toLowerCase()}</h3><b>{price(s.value)}</b></div>
         {isNum(s.probability) && <div className="rl-muted rl-small">Xác suất {pct(s.probability)}</div>}
         <BulletList items={s.assumptions} />
-        {s.method && !sameMethod && <p className="rl-note">{s.method} <Refs ids={s.source_ids} /></p>}
+        {s.method && !sameMethod && <p className="rl-note"><Term>{s.method}</Term> <Refs ids={s.source_ids} /></p>}
       </div>)}
     </div>
-    {sameMethod && <p className="rl-note"><b>Phương pháp các kịch bản:</b> {scen[0].method} <Refs ids={[...new Set(scen.flatMap(s => s.source_ids || []))]} /></p>}
+    {sameMethod && <p className="rl-note"><b>Phương pháp các kịch bản:</b> <Term>{scen[0].method}</Term> <Refs ids={[...new Set(scen.flatMap(s => s.source_ids || []))]} /></p>}
     {v.limitations?.length > 0 && <Gaps items={v.limitations} title="Giới hạn của định giá" />}
     {(v.methods?.length > 0 || v.sensitivity?.length > 0) && <details className="rl-more">
       <summary>Phương pháp và độ nhạy</summary>
@@ -637,7 +638,7 @@ function ScorecardBlock({ scorecard, criteria }) {
             <ScoreBar value={r.score} />
           </button>
           {open === r.id && <div className="rl-criterion-detail">
-            <p>{r.rationale || '—'} <Refs ids={r.source_ids} /></p>
+            <p><Term>{r.rationale || '—'}</Term> <Refs ids={r.source_ids} /></p>
             {r.benchmark && <p className="rl-muted rl-small">So sánh với: {r.benchmark}</p>}
           </div>}
         </div>)}
@@ -655,13 +656,13 @@ function RiskBlock({ risk }) {
     <div className="rl-risks">
       {(risk.items || []).map((r, i) => <div className="rl-risk" key={i}>
         <div className="rl-risk-head">
-          <h3>{r.description}</h3>
+          <h3><Term>{r.description}</Term></h3>
           <div className="rl-risk-tags">
             <span>Khả năng <Badge map={LEVEL} value={r.likelihood} code={false} /></span>
             <span>Tác động <Badge map={LEVEL} value={r.impact} code={false} /></span>
           </div>
         </div>
-        <p><span className="rl-muted">Cách theo dõi / giảm thiểu:</span> {r.mitigation} <Refs ids={r.source_ids} /></p>
+        <p><span className="rl-muted">Cách theo dõi / giảm thiểu:</span> <Term>{r.mitigation}</Term> <Refs ids={r.source_ids} /></p>
       </div>)}
     </div>
   </>
@@ -674,17 +675,17 @@ function OpinionList({ items, labels, numbered }) {
   const impacts = [...new Set(entries.map(([, x]) => x.decision_impact).filter(Boolean))]
   const sharedImpact = impacts.length === 1 && entries.length > 2 ? impacts[0] : null
   return <>
-    {sharedImpact && <p className="rl-note"><b>Tác động chung đến quyết định:</b> {sharedImpact}</p>}
+    {sharedImpact && <p className="rl-note"><b>Tác động chung đến quyết định:</b> <Term>{sharedImpact}</Term></p>}
     <ol className={`rl-qa ${numbered ? 'numbered' : 'labelled'}`}>{entries.map(([key, x], i) => <li key={key}>
       <div className="rl-qa-row">
         <span className="rl-qa-key">{numbered ? String(i + 1).padStart(2, '0') : (labels?.[key] || titleCase(key))}</span>
-        <span className="rl-qa-title">{x.conclusion}</span>
+        <span className="rl-qa-title"><Term>{x.conclusion}</Term></span>
         <Badge map={CONFIDENCE} value={x.confidence} code={false} className="sm" />
       </div>
       <div className="rl-qa-body">
-        <div className="rl-qa-evidence">{x.evidence} <Refs ids={x.source_ids} /></div>
-        {x.decision_impact && !sharedImpact && <div className="rl-qa-extra"><span>Tác động:</span> {x.decision_impact}</div>}
-        {x.gaps?.length > 0 && <div className="rl-qa-extra"><span>Còn thiếu:</span> {x.gaps.join('; ')}</div>}
+        <div className="rl-qa-evidence"><Term>{x.evidence}</Term> <Refs ids={x.source_ids} /></div>
+        {x.decision_impact && !sharedImpact && <div className="rl-qa-extra"><span>Tác động:</span> <Term>{x.decision_impact}</Term></div>}
+        {x.gaps?.length > 0 && <div className="rl-qa-extra"><span>Còn thiếu:</span> <Term>{x.gaps.join('; ')}</Term></div>}
       </div>
     </li>)}</ol>
   </>
@@ -730,7 +731,7 @@ function PivotTable({ rows, periods, title }) {
     <div className="rl-table-wrap"><table className="rl-table rl-pivot">
       <thead><tr><th>Chỉ tiêu</th>{periods.map(p => <th key={p} className="num">{p}</th>)}</tr></thead>
       <tbody>{rows.map(r => <tr key={r.key}>
-        <th scope="row">{r.name}{unitLabel(r.unit) && <small>{r.unit}</small>}</th>
+        <th scope="row"><Term>{r.name}</Term>{unitLabel(r.unit) && <small>{r.unit}</small>}</th>
         {periods.map(p => { const m = r.byPeriod.get(p); return <td key={p} className="num">{m ? <MetricCell m={m} /> : ''}</td> })}
       </tr>)}</tbody>
     </table></div>
@@ -739,7 +740,7 @@ function PivotTable({ rows, periods, title }) {
 
 function MetricTiles({ metrics }) {
   return <div className="rl-tiles">{metrics.map((m, i) => <div className="rl-tile" key={i}>
-    <span className="rl-tile-name">{m.name}</span>
+    <span className="rl-tile-name"><Term>{m.name}</Term></span>
     <span className="rl-tile-value"><MetricCell m={m} />{isNum(m.value) && unitLabel(m.unit) && <small>{m.unit}</small>}</span>
     <span className="rl-tile-period">{m.period}{m.verification === 'UNVERIFIED' ? ' · chưa xác minh' : ''}</span>
   </div>)}</div>
@@ -749,7 +750,7 @@ function MetricsDetail({ metrics }) {
   return <div className="rl-table-wrap"><table className="rl-table rl-flat">
     <thead><tr><th>Chỉ tiêu</th><th>Kỳ</th><th className="num">Giá trị</th><th>Loại</th><th>Nguồn</th></tr></thead>
     <tbody>{metrics.map((m, i) => <tr key={i}>
-      <th scope="row">{m.name}{m.method && <small>{m.method}</small>}{m.missing_reason && <small>Thiếu: {m.missing_reason}</small>}</th>
+      <th scope="row"><Term>{m.name}</Term>{m.method && <small>{m.method}</small>}{m.missing_reason && <small>Thiếu: {m.missing_reason}</small>}</th>
       <td>{m.period}</td>
       <td className="num"><MetricCell m={m} />{isNum(m.value) && unitLabel(m.unit) && <small className="rl-muted"> {m.unit}</small>}</td>
       <td><span className="rl-cls">{CLASSIFICATION[m.classification] || m.classification}{m.verification === 'VERIFIED' ? ' · ✓' : ''}</span></td>
@@ -814,11 +815,11 @@ function CatalystBlock({ items }) {
   return <ol className="rl-timeline">{items.map((c, i) => <li key={i}>
     <div className="rl-timeline-when">{c.window}</div>
     <div className="rl-timeline-body">
-      <h3>{c.event} <Refs ids={c.source_ids} /></h3>
+      <h3><Term>{c.event}</Term> <Refs ids={c.source_ids} /></h3>
       <dl className="rl-deflist compact">
-        <div><dt>Điều kiện</dt><dd>{c.condition}</dd></div>
-        <div><dt>Nếu xảy ra</dt><dd>{c.impact}</dd></div>
-        <div><dt>Nếu không</dt><dd>{c.failure_effect}</dd></div>
+        <div><dt>Điều kiện</dt><dd><Term>{c.condition}</Term></dd></div>
+        <div><dt>Nếu xảy ra</dt><dd><Term>{c.impact}</Term></dd></div>
+        <div><dt>Nếu không</dt><dd><Term>{c.failure_effect}</Term></dd></div>
       </dl>
     </div>
   </li>)}</ol>
@@ -830,7 +831,7 @@ function MonitoringBlock({ items }) {
   return <div className="rl-table-wrap"><table className="rl-table rl-stack">
     <thead><tr><th>Chỉ tiêu</th><th>Ngưỡng</th><th>Hành động</th><th>Ngày xem lại</th></tr></thead>
     <tbody>{sorted.map((m, i) => <tr key={i}>
-      <th scope="row" data-label="Chỉ tiêu">{m.metric}</th><td data-label="Ngưỡng">{m.threshold}</td><td data-label="Hành động">{m.action}</td><td data-label="Xem lại">{dateText(m.review_date)}</td>
+      <th scope="row" data-label="Chỉ tiêu"><Term>{m.metric}</Term></th><td data-label="Ngưỡng"><Term>{m.threshold}</Term></td><td data-label="Hành động"><Term>{m.action}</Term></td><td data-label="Xem lại">{dateText(m.review_date)}</td>
     </tr>)}</tbody>
   </table></div>
 }
@@ -913,7 +914,7 @@ function ResearchPage({ ticker, exchange }) {
             title={<>{data.company || ticker} <span className="rl-ticker-pill">{ticker} · {data.exchange}</span></>}
             sub={`${data.sector || ''}${data.reporting_period ? ` · Kỳ báo cáo: ${data.reporting_period}` : ''}`} />
           <KeyFacts data={data} p={p} />
-          <div className="rl-layout">
+          <GlossaryScope sector={data.sector}><div className="rl-layout">
             <SectionNav sections={sections} active={active} />
             <article className="rl-article">
               <ReportSection id="tom-tat" title="Tóm tắt">
@@ -968,7 +969,7 @@ function ResearchPage({ ticker, exchange }) {
                 <div className="rl-meta">Công bố {dateText(data.published_at)} · R{data.revision} · Schema {data.schema_version} · SHA-256 <code>{data.sha256}</code></div>
               </ReportSection>
             </article>
-          </div>
+          </div></GlossaryScope>
         </>}
       </main>
       <BackToTop />
@@ -1024,7 +1025,7 @@ function ScreeningPage({ lineageKey }) {
                   <Badge map={GATE} value={c.risk_gate} code={false} />
                 </button>
                 {open === key && <div className="rl-candidate-body">
-                  <p>{c.rationale} <Refs ids={c.source_ids} /></p>
+                  <p><Term>{c.rationale}</Term> <Refs ids={c.source_ids} /></p>
                   {published.has(`${c.ticker}:${c.exchange}`) && <a className="rl-button" href={researchHref(c)}>Đọc Full Research {c.ticker} →</a>}
                   {c.scorecard && <ScorecardBlock scorecard={c.scorecard} criteria={[]} />}
                 </div>}
@@ -1042,10 +1043,16 @@ function ScreeningPage({ lineageKey }) {
   </SourcesContext.Provider>
 }
 
-export default function PublicLibrary() {
+function Routes() {
   const path = window.location.pathname.split('/').filter(Boolean)
   const exchange = (new URLSearchParams(window.location.search).get('exchange') || 'HOSE').toUpperCase()
   if (path[0] === 'research' && path[1]) return <ResearchPage ticker={decodeURIComponent(path[1]).toUpperCase()} exchange={exchange} />
   if (path[0] === 'screening' && path[1]) return <ScreeningPage lineageKey={decodeURIComponent(path[1])} />
+  if (path[0] === 'thuat-ngu') return <GlossaryPage slug={path[1] ? decodeURIComponent(path[1]) : ''} TopBar={TopBar} Footer={Footer} />
   return <Home />
+}
+
+// GlossaryProvider bọc toàn bộ thư viện: thuật ngữ trong mọi bài đọc đều có tooltip.
+export default function PublicLibrary() {
+  return <GlossaryProvider><Routes /></GlossaryProvider>
 }
