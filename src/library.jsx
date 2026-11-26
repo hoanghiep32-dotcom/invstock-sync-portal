@@ -153,7 +153,7 @@ function TopBar({ children, progress }) {
     <div className="rl-topbar-inner">
       <a className="rl-brand" href="/" aria-label="Về thư viện">
         <span className="rl-brand-mark">IS</span>
-        <span className="rl-brand-text"><strong>InvStock</strong><small>Thư viện nghiên cứu</small></span>
+        <span className="rl-brand-text"><strong>INVSTOCK TRACKER</strong><small>INVESTMENT RESEARCH</small></span>
       </a>
       <div className="rl-topbar-mid">{children}</div>
       <nav className="rl-topbar-nav"><a href="/admin">Admin</a></nav>
@@ -325,14 +325,17 @@ function Home() {
     .filter(r => !f.sector || r.sector === f.sector)
     .sort(SORTS[f.sort].fn), [all, needle, f.decision, f.gate, f.sector, f.sort])
   const screeningList = useMemo(() => screenings.filter(s => !needle || fold(`${s.strategy} ${s.universe}`).includes(needle)), [screenings, needle])
+  const lastUpdate = useMemo(() => [...all, ...screenings].map(x => x.published_at).filter(Boolean).sort().pop(), [all, screenings])
   const hasFilters = f.q || f.decision || f.gate || f.sector
 
   return <div className="rl">
     <TopBar />
     <main className="rl-main">
       <section className="rl-intro">
-        <h1>Thư viện nghiên cứu cổ phiếu</h1>
-        <p>Báo cáo phân tích doanh nghiệp, định giá và sàng lọc của InvStock. Chỉ gồm bản đã được duyệt và xuất bản.</p>
+        <div className="rl-intro-head">
+          <h1>Thư viện nghiên cứu</h1>
+          {!loading && !error && <span className="rl-intro-meta">{all.length} Full Research · {screenings.length} Screening{lastUpdate ? ` · cập nhật ${dateText(lastUpdate)}` : ''}</span>}
+        </div>
         <div className="rl-search">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input ref={searchRef} type="search" value={f.q} onChange={e => set({ q: e.target.value })}
