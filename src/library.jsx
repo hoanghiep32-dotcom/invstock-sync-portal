@@ -565,6 +565,7 @@ function ValuationBlock({ v }) {
   const hi = marks.length ? Math.max(...marks) * 1.05 : 1
   const pos = x => `${((x - lo) / (hi - lo || 1)) * 100}%`
   const names = { bear: 'Xấu', base: 'Cơ sở', bull: 'Tốt' }
+  const sameMethod = scen.every(x => x.method && x.method === scen[0].method)
   return <>
     {marks.length > 1 && <div className="rl-scale" aria-label="Thang định giá">
       <div className="rl-scale-track">
@@ -574,26 +575,30 @@ function ValuationBlock({ v }) {
         {isNum(v.max_buy) && <div className="rl-scale-mark maxbuy" style={{ left: pos(v.max_buy) }}><span>Mua tối đa<b>{price(v.max_buy)}</b></span></div>}
       </div>
     </div>}
-    <div className="rl-stat-row">
+    {[v.upside, v.downside, v.reward_risk, v.target_price].some(isNum) && <div className="rl-stat-row">
       <div><span>Tiềm năng tăng</span><b className="good">{pct(v.upside)}</b></div>
       <div><span>Rủi ro giảm</span><b className="warn">{pct(v.downside)}</b></div>
       <div><span>Lợi nhuận / rủi ro</span><b>{isNum(v.reward_risk) ? `${num(v.reward_risk)}x` : "—"}</b></div>
       <div><span>Giá mục tiêu</span><b>{price(v.target_price)}</b></div>
-    </div>
+    </div>}
     {v.target_horizon && <p className="rl-note">Giá mục tiêu: {v.target_horizon}</p>}
     <div className="rl-scenarios">
       {scen.map(s => <div key={s.k} className={`rl-panel scen-${s.k}`}>
         <div className="rl-scen-head"><h3>Kịch bản {names[s.k].toLowerCase()}</h3><b>{price(s.value)}</b></div>
         {isNum(s.probability) && <div className="rl-muted rl-small">Xác suất {pct(s.probability)}</div>}
         <BulletList items={s.assumptions} />
-        {s.method && <p className="rl-note">{s.method} <Refs ids={s.source_ids} /></p>}
+        {s.method && !sameMethod && <p className="rl-note">{s.method} <Refs ids={s.source_ids} /></p>}
       </div>)}
     </div>
-    <div className="rl-two">
-      {v.methods?.length > 0 && <div className="rl-panel"><h3>Phương pháp</h3><BulletList items={v.methods} /></div>}
-      {v.sensitivity?.length > 0 && <div className="rl-panel"><h3>Độ nhạy</h3><BulletList items={v.sensitivity} /></div>}
-    </div>
+    {sameMethod && <p className="rl-note"><b>Phương pháp các kịch bản:</b> {scen[0].method} <Refs ids={[...new Set(scen.flatMap(s => s.source_ids || []))]} /></p>}
     {v.limitations?.length > 0 && <Gaps items={v.limitations} title="Giới hạn của định giá" />}
+    {(v.methods?.length > 0 || v.sensitivity?.length > 0) && <details className="rl-more">
+      <summary>Phương pháp và độ nhạy</summary>
+      <div className="rl-two">
+        {v.methods?.length > 0 && <div><h3>Phương pháp</h3><BulletList items={v.methods} /></div>}
+        {v.sensitivity?.length > 0 && <div><h3>Độ nhạy</h3><BulletList items={v.sensitivity} /></div>}
+      </div>
+    </details>}
   </>
 }
 
@@ -662,96 +667,146 @@ function RiskBlock({ risk }) {
   </>
 }
 
-function OpinionCards({ items, labels, numbered }) {
-  return <div className="rl-opinions">{Object.entries(items || {}).map(([key, x], i) => <article className="rl-opinion" key={key}>
-    <div className="rl-opinion-head">
-      <span className="rl-opinion-key">{numbered ? `Câu ${i + 1}` : (labels?.[key] || titleCase(key))}</span>
-      <Badge map={CONFIDENCE} value={x.confidence} code={false} className="sm" />
-    </div>
-    <h3>{x.conclusion}</h3>
-    <p>{x.evidence} <Refs ids={x.source_ids} /></p>
-    {x.decision_impact && <p className="rl-opinion-impact"><span>Tác động:</span> {x.decision_impact}</p>}
-    {x.gaps?.length > 0 && <p className="rl-opinion-gaps"><span>Còn thiếu:</span> {x.gaps.join('; ')}</p>}
-  </article>)}</div>
+/* Danh sách phản biện gọn: mỗi dòng một kết luận, bằng chứng và phần còn thiếu ngay bên dưới. */
+function OpinionList({ items, labels, numbered }) {
+  const entries = Object.entries(items || {})
+  if (!entries.length) return null
+  const impacts = [...new Set(entries.map(([, x]) => x.decision_impact).filter(Boolean))]
+  const sharedImpact = impacts.length === 1 && entries.length > 2 ? impacts[0] : null
+  return <>
+    {sharedImpact && <p className="rl-note"><b>Tác động chung đến quyết định:</b> {sharedImpact}</p>}
+    <ol className={`rl-qa ${numbered ? 'numbered' : 'labelled'}`}>{entries.map(([key, x], i) => <li key={key}>
+      <div className="rl-qa-row">
+        <span className="rl-qa-key">{numbered ? String(i + 1).padStart(2, '0') : (labels?.[key] || titleCase(key))}</span>
+        <span className="rl-qa-title">{x.conclusion}</span>
+        <Badge map={CONFIDENCE} value={x.confidence} code={false} className="sm" />
+      </div>
+      <div className="rl-qa-body">
+        <div className="rl-qa-evidence">{x.evidence} <Refs ids={x.source_ids} /></div>
+        {x.decision_impact && !sharedImpact && <div className="rl-qa-extra"><span>Tác động:</span> {x.decision_impact}</div>}
+        {x.gaps?.length > 0 && <div className="rl-qa-extra"><span>Còn thiếu:</span> {x.gaps.join('; ')}</div>}
+      </div>
+    </li>)}</ol>
+  </>
 }
 
-function metricValue(m) {
-  if (!isNum(m.value)) return <span className="rl-muted" title={m.missing_reason || ''}>{m.missing_reason ? 'Không có*' : '—'}</span>
-  return num(m.value, Math.abs(m.value) >= 1000 ? 0 : 2)
-}
+/* ---------- Số liệu ---------- */
 
-function MetricMark({ m }) {
-  return <span className={`rl-mark ${m.verification === 'VERIFIED' ? 'ok' : m.verification === 'UNVERIFIED' ? 'no' : ''}`}
-    title={`${CLASSIFICATION[m.classification] || m.classification || ''} · ${m.verification === 'VERIFIED' ? 'Đã xác minh' : m.verification === 'UNVERIFIED' ? 'Chưa xác minh' : 'Không áp dụng'}${m.method ? ` · ${m.method}` : ''}`}>
-    {m.verification === 'VERIFIED' ? '✓' : m.verification === 'UNVERIFIED' ? '?' : ''}
+const UNIT_PCT = new Set(['%'])
+const UNIT_FRACTION = new Set(['fraction'])
+const UNIT_MULTIPLE = new Set(['x', 'lần'])
+
+function formatMetric(m) {
+  if (!isNum(m.value)) return null
+  const v = m.value
+  if (UNIT_FRACTION.has(m.unit)) return `${(v * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`
+  if (UNIT_PCT.has(m.unit)) return `${v.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`
+  if (UNIT_MULTIPLE.has(m.unit)) return `${v.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}x`
+  const abs = Math.abs(v)
+  return v.toLocaleString('vi-VN', { maximumFractionDigits: abs >= 100 ? 0 : abs >= 10 ? 1 : 2 })
+}
+const unitLabel = u => (UNIT_PCT.has(u) || UNIT_FRACTION.has(u) || UNIT_MULTIPLE.has(u)) ? '' : u
+
+function MetricCell({ m }) {
+  const text = formatMetric(m)
+  const tip = [m.period, CLASSIFICATION[m.classification], m.verification === 'VERIFIED' ? 'Đã xác minh' : m.verification === 'UNVERIFIED' ? 'Chưa xác minh' : null, m.method, m.missing_reason].filter(Boolean).join(' · ')
+  return <span className={`rl-val ${m.verification === 'UNVERIFIED' ? 'unverified' : ''} ${(m.value ?? 0) < 0 ? 'neg' : ''}`} title={tip}>
+    {text ?? <span className="rl-muted">—</span>}
   </span>
 }
 
-function MetricsView({ metrics }) {
-  const [mode, setMode] = useState('auto')
-  if (!metrics?.length) return null
-  // Chỉ tiêu xuất hiện ở nhiều kỳ thì gom thành bảng theo kỳ cho dễ so sánh.
-  const byName = new Map()
-  metrics.forEach(m => { const k = `${m.name}|${m.unit}`; if (!byName.has(k)) byName.set(k, []); byName.get(k).push(m) })
-  const series = [...byName.values()].filter(list => new Set(list.map(m => m.period)).size > 1)
-  const seriesSet = new Set(series.flat())
-  const singles = metrics.filter(m => !seriesSet.has(m))
-  const periods = [...new Set(series.flat().map(m => m.period))]
-  const canPivot = series.length > 0 && mode === 'auto'
-  return <div className="rl-metrics">
-    {series.length > 0 && <div className="rl-metrics-toolbar">
-      <button className={mode === 'auto' ? 'active' : ''} onClick={() => setMode('auto')}>Theo kỳ</button>
-      <button className={mode === 'flat' ? 'active' : ''} onClick={() => setMode('flat')}>Chi tiết</button>
-    </div>}
-    {canPivot && <div className="rl-table-wrap"><table className="rl-table rl-pivot">
+// Nhóm kỳ: năm, quý, lũy kế/khác, để bảng không bị trải dài và thưa.
+function periodGroup(p) {
+  const s = String(p)
+  if (/^(FY)?\d{4}[A-Z]?$/i.test(s)) return 'year'
+  if (/^Q\d/i.test(s) || /^\d{4}Q\d/i.test(s)) return 'quarter'
+  return 'other'
+}
+const PERIOD_GROUP_TITLE = { year: 'Theo năm', quarter: 'Theo quý', other: 'Lũy kế / thời điểm khác' }
+
+function PivotTable({ rows, periods, title }) {
+  return <div className="rl-pivot-block">
+    {title && <div className="rl-pivot-title">{title}</div>}
+    <div className="rl-table-wrap"><table className="rl-table rl-pivot">
       <thead><tr><th>Chỉ tiêu</th>{periods.map(p => <th key={p} className="num">{p}</th>)}</tr></thead>
-      <tbody>{series.map(list => <tr key={`${list[0].name}|${list[0].unit}`}>
-        <th scope="row">{list[0].name}<small>{list[0].unit}</small></th>
-        {periods.map(p => { const m = list.find(x => x.period === p); return <td key={p} className="num">{m ? <>{metricValue(m)}<MetricMark m={m} /></> : ''}</td> })}
+      <tbody>{rows.map(r => <tr key={r.key}>
+        <th scope="row">{r.name}{unitLabel(r.unit) && <small>{r.unit}</small>}</th>
+        {periods.map(p => { const m = r.byPeriod.get(p); return <td key={p} className="num">{m ? <MetricCell m={m} /> : ''}</td> })}
       </tr>)}</tbody>
-    </table></div>}
-    {(canPivot ? singles : metrics).length > 0 && <div className="rl-table-wrap"><table className="rl-table rl-flat">
-      <thead><tr><th>Chỉ tiêu</th><th>Kỳ</th><th className="num">Giá trị</th><th>Đơn vị</th><th>Loại</th><th>Nguồn</th></tr></thead>
-      <tbody>{(canPivot ? singles : metrics).map((m, i) => <tr key={i}>
-        <th scope="row">{m.name}{m.method && <small>{m.method}</small>}</th>
-        <td>{m.period}</td>
-        <td className="num">{metricValue(m)}<MetricMark m={m} /></td>
-        <td>{m.unit}</td>
-        <td><span className="rl-cls">{CLASSIFICATION[m.classification] || m.classification}</span></td>
-        <td><Refs ids={m.source_ids} /></td>
-      </tr>)}</tbody>
-    </table></div>}
-    <p className="rl-muted rl-small">✓ đã xác minh · ? chưa xác minh · rê chuột lên ô để xem phương pháp.</p>
+    </table></div>
   </div>
 }
 
-function ModulesBlock({ modules }) {
-  const keys = Object.keys(modules || {}).filter(k => k !== 'executive_summary')
-  const [openAll, setOpenAll] = useState(false)
-  const [nonce, setNonce] = useState(0)
-  if (!keys.length) return null
-  return <>
-    <div className="rl-modules-toolbar">
-      <span className="rl-muted rl-small">{keys.length} phần phân tích</span>
-      <button className="rl-link" onClick={() => { setOpenAll(!openAll); setNonce(n => n + 1) }}>{openAll ? 'Thu gọn tất cả' : 'Mở tất cả'}</button>
+function MetricTiles({ metrics }) {
+  return <div className="rl-tiles">{metrics.map((m, i) => <div className="rl-tile" key={i}>
+    <span className="rl-tile-name">{m.name}</span>
+    <span className="rl-tile-value"><MetricCell m={m} />{isNum(m.value) && unitLabel(m.unit) && <small>{m.unit}</small>}</span>
+    <span className="rl-tile-period">{m.period}{m.verification === 'UNVERIFIED' ? ' · chưa xác minh' : ''}</span>
+  </div>)}</div>
+}
+
+function MetricsDetail({ metrics }) {
+  return <div className="rl-table-wrap"><table className="rl-table rl-flat">
+    <thead><tr><th>Chỉ tiêu</th><th>Kỳ</th><th className="num">Giá trị</th><th>Loại</th><th>Nguồn</th></tr></thead>
+    <tbody>{metrics.map((m, i) => <tr key={i}>
+      <th scope="row">{m.name}{m.method && <small>{m.method}</small>}{m.missing_reason && <small>Thiếu: {m.missing_reason}</small>}</th>
+      <td>{m.period}</td>
+      <td className="num"><MetricCell m={m} />{isNum(m.value) && unitLabel(m.unit) && <small className="rl-muted"> {m.unit}</small>}</td>
+      <td><span className="rl-cls">{CLASSIFICATION[m.classification] || m.classification}{m.verification === 'VERIFIED' ? ' · ✓' : ''}</span></td>
+      <td><Refs ids={m.source_ids} /></td>
+    </tr>)}</tbody>
+  </table></div>
+}
+
+function MetricsView({ metrics }) {
+  const [detail, setDetail] = useState(false)
+  if (!metrics?.length) return null
+  const byName = new Map()
+  metrics.forEach(m => {
+    const key = `${m.name}|${m.unit}`
+    if (!byName.has(key)) byName.set(key, { key, name: m.name, unit: m.unit, list: [] })
+    byName.get(key).list.push(m)
+  })
+  const series = [...byName.values()].filter(r => new Set(r.list.map(m => m.period)).size > 1)
+  const inSeries = new Set(series.flatMap(r => r.list))
+  const singles = metrics.filter(m => !inSeries.has(m))
+  const groups = ['year', 'quarter', 'other'].map(g => {
+    const periods = [...new Set(series.flatMap(r => r.list.map(m => m.period)).filter(p => periodGroup(p) === g))]
+    const rows = series.map(r => ({ ...r, byPeriod: new Map(r.list.filter(m => periodGroup(m.period) === g).map(m => [m.period, m])) }))
+      .filter(r => r.byPeriod.size > 0)
+    return { g, periods, rows }
+  }).filter(x => x.periods.length && x.rows.length)
+  const multi = groups.length > 1
+  const unverified = metrics.filter(m => m.verification === 'UNVERIFIED').length
+  return <div className="rl-metrics">
+    {detail ? <MetricsDetail metrics={metrics} /> : <>
+      {groups.map(x => <PivotTable key={x.g} rows={x.rows} periods={x.periods} title={multi ? PERIOD_GROUP_TITLE[x.g] : null} />)}
+      {singles.length > 0 && <MetricTiles metrics={singles} />}
+    </>}
+    <div className="rl-metrics-foot">
+      <span>{unverified ? `${unverified}/${metrics.length} số liệu chưa xác minh (chữ nghiêng)` : 'Số liệu đã xác minh'}</span>
+      <button className="rl-link" onClick={() => setDetail(!detail)}>{detail ? 'Xem dạng gọn' : 'Xem nguồn và phương pháp'}</button>
     </div>
-    <div className="rl-modules">{keys.map((k, i) => {
-      const m = modules[k] || {}
-      return <details className="rl-module" id={`module-${k}`} key={`${k}-${nonce}`} open={openAll || undefined}>
-        <summary>
-          <span className="rl-module-no">{String(i + 1).padStart(2, '0')}</span>
-          <span className="rl-module-title">{MODULES[k] || titleCase(k)}</span>
-          <span className="rl-module-meta">{m.metrics?.length ? `${m.metrics.length} chỉ tiêu` : ''}{m.gaps?.length ? ` · ${m.gaps.length} thiếu` : ''}</span>
-        </summary>
-        <div className="rl-module-body">
-          <Prose text={m.analysis} />
-          <Refs ids={m.source_ids} />
-          <MetricsView metrics={m.metrics} />
-          <Gaps items={m.gaps} />
-        </div>
-      </details>
-    })}</div>
+  </div>
+}
+
+function ModuleBody({ m, showGaps = true }) {
+  if (!m) return null
+  return <>
+    <Prose text={m.analysis} />
+    {m.source_ids?.length > 0 && <div className="rl-refs-line"><span>Nguồn:</span><Refs ids={m.source_ids} /></div>}
+    <MetricsView metrics={m.metrics} />
+    {showGaps && <Gaps items={m.gaps} />}
   </>
+}
+
+function Chapter({ modules, keys }) {
+  const present = keys.filter(k => modules?.[k])
+  if (!present.length) return null
+  return present.map(k => <div className="rl-sub" id={`module-${k}`} key={k}>
+    {present.length > 1 && <h3 className="rl-sub-title">{MODULES[k] || titleCase(k)}</h3>}
+    <ModuleBody m={modules[k]} />
+  </div>)
 }
 
 function CatalystBlock({ items }) {
@@ -803,29 +858,39 @@ function ReportHeader({ kicker, title, sub, chips }) {
   </section>
 }
 
+// Bố cục bài research theo trình tự đọc: kết luận → định giá → doanh nghiệp → tài chính → rủi ro → theo dõi → phản biện.
+const CHAPTERS = [
+  { id: 'doanh-nghiep', title: 'Doanh nghiệp và ngành', keys: ['company_intelligence', 'industry_macro', 'competitive_advantage', 'assets_projects'] },
+  { id: 'tai-chinh', title: 'Tài chính', keys: ['financial_performance', 'financial_forensics', 'debt_liquidity'] },
+  { id: 'quan-tri', title: 'Sở hữu và quản trị', keys: ['ownership_governance'] },
+  { id: 'du-phong', title: 'Dự phóng tăng trưởng', keys: ['growth_forecast'] }
+]
+const PLACED = new Set(['executive_summary', 'decision_monitoring', 'valuation_engine', 'scorecard_risk', 'catalysts_expectations', ...CHAPTERS.flatMap(c => c.keys)])
+
 function ResearchPage({ ticker, exchange }) {
   const report = useApi({ action: 'research', ticker, exchange }, [ticker, exchange])
   const crit = useApi({ action: 'criteria' }, [])
   const [size, setSize] = useReaderSize()
   const data = report.data
   const p = data?.payload || {}
+  const mods = p.modules || {}
   const sourceMap = useMemo(() => Object.fromEntries((p.sources || []).map(s => [s.id, s])), [p.sources])
   const title = data ? `${ticker} · ${data.company || ''}` : ticker
   useEffect(() => { document.title = `${title} · InvStock` }, [title])
+  const otherKeys = Object.keys(mods).filter(k => !PLACED.has(k))
 
   const sections = useMemo(() => {
     if (!data) return []
     return [
-      { id: 'tong-quan', title: 'Tổng quan', show: true },
+      { id: 'tom-tat', title: 'Tóm tắt', show: true },
       { id: 'luan-diem', title: 'Luận điểm', show: !!p.decision },
-      { id: 'dinh-gia', title: 'Định giá', show: !!p.valuation },
+      { id: 'dinh-gia', title: 'Định giá', show: !!p.valuation || !!mods.valuation_engine },
+      ...CHAPTERS.map(c => ({ id: c.id, title: c.title, show: c.keys.some(k => mods[k]) })),
+      { id: 'khac', title: 'Phân tích khác', show: otherKeys.length > 0 },
       { id: 'scorecard', title: 'Scorecard', show: !!p.scorecard },
       { id: 'rui-ro', title: 'Rủi ro', show: !!p.risk },
-      { id: 'catalyst', title: 'Catalyst', show: !!p.catalysts?.length },
-      { id: 'theo-doi', title: 'Theo dõi', show: !!p.monitoring?.length },
-      { id: 'core10', title: 'Core 10', show: !!p.core10 },
-      { id: 'hoi-dong', title: 'Hội đồng đầu tư', show: !!p.committee },
-      { id: 'phan-tich', title: 'Phân tích chi tiết', show: !!p.modules },
+      { id: 'catalyst', title: 'Catalyst và theo dõi', show: !!p.catalysts?.length || !!p.monitoring?.length || !!mods.catalysts_expectations },
+      { id: 'phan-bien', title: 'Phản biện', show: !!p.core10 || !!p.committee },
       { id: 'nguon', title: 'Nguồn', show: true }
     ].filter(s => s.show)
   }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -851,23 +916,52 @@ function ResearchPage({ ticker, exchange }) {
           <div className="rl-layout">
             <SectionNav sections={sections} active={active} />
             <article className="rl-article">
-              <ReportSection id="tong-quan" title="Tổng quan" kicker="Đọc nhanh">
-                {p.modules?.executive_summary ? <>
-                  <Prose text={p.modules.executive_summary.analysis} />
-                  <Refs ids={p.modules.executive_summary.source_ids} />
-                  <MetricsView metrics={p.modules.executive_summary.metrics} />
-                  <Gaps items={p.modules.executive_summary.gaps} />
-                </> : <p className="rl-muted">Không có tóm tắt.</p>}
+              <ReportSection id="tom-tat" title="Tóm tắt">
+                {mods.executive_summary ? <div className="rl-summary">
+                  <ModuleBody m={mods.executive_summary} />
+                </div> : <p className="rl-muted">Không có tóm tắt.</p>}
               </ReportSection>
-              {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư"><ThesisBlock decision={p.decision} /></ReportSection>}
-              {p.valuation && <ReportSection id="dinh-gia" title="Định giá" kicker={`Đơn vị: ${p.valuation.currency || 'VND'}/cổ phiếu`}><ValuationBlock v={p.valuation} /></ReportSection>}
+
+              {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư">
+                {mods.decision_monitoring?.analysis && <Prose text={mods.decision_monitoring.analysis} />}
+                <ThesisBlock decision={p.decision} />
+                {mods.decision_monitoring?.metrics?.length > 0 && <MetricsView metrics={mods.decision_monitoring.metrics} />}
+                <Gaps items={mods.decision_monitoring?.gaps} />
+              </ReportSection>}
+
+              {(p.valuation || mods.valuation_engine) && <ReportSection id="dinh-gia" title="Định giá" kicker={`Đơn vị: ${p.valuation?.currency || 'VND'}/cổ phiếu`}>
+                <ValuationBlock v={p.valuation} />
+                {mods.valuation_engine && <div className="rl-sub" id="module-valuation_engine">
+                  <h3 className="rl-sub-title">Mô hình định giá</h3>
+                  <ModuleBody m={mods.valuation_engine} />
+                </div>}
+              </ReportSection>}
+
+              {CHAPTERS.map(c => c.keys.some(k => mods[k]) && <ReportSection id={c.id} title={c.title} key={c.id}>
+                <Chapter modules={mods} keys={c.keys} />
+              </ReportSection>)}
+
+              {otherKeys.length > 0 && <ReportSection id="khac" title="Phân tích khác"><Chapter modules={mods} keys={otherKeys} /></ReportSection>}
+
               {p.scorecard && <ReportSection id="scorecard" title="Scorecard 15 tiêu chí"><ScorecardBlock scorecard={p.scorecard} criteria={crit.data?.criteria} /></ReportSection>}
-              {p.risk && <ReportSection id="rui-ro" title="Rủi ro"><RiskBlock risk={p.risk} /></ReportSection>}
-              {p.catalysts?.length > 0 && <ReportSection id="catalyst" title="Catalyst sắp tới"><CatalystBlock items={p.catalysts} /></ReportSection>}
-              {p.monitoring?.length > 0 && <ReportSection id="theo-doi" title="Chỉ tiêu theo dõi"><MonitoringBlock items={p.monitoring} /></ReportSection>}
-              {p.core10 && <ReportSection id="core10" title="10 câu hỏi cốt lõi"><OpinionCards items={p.core10} numbered /></ReportSection>}
-              {p.committee && <ReportSection id="hoi-dong" title="Hội đồng đầu tư" kicker="6 góc nhìn phản biện"><OpinionCards items={p.committee} labels={COMMITTEE} /></ReportSection>}
-              {p.modules && <ReportSection id="phan-tich" title="Phân tích chi tiết"><ModulesBlock modules={p.modules} /></ReportSection>}
+
+              {p.risk && <ReportSection id="rui-ro" title="Rủi ro">
+                {mods.scorecard_risk?.analysis && <Prose text={mods.scorecard_risk.analysis} />}
+                <RiskBlock risk={p.risk} />
+                {mods.scorecard_risk?.metrics?.length > 0 && <MetricsView metrics={mods.scorecard_risk.metrics} />}
+              </ReportSection>}
+
+              {(p.catalysts?.length > 0 || p.monitoring?.length > 0 || mods.catalysts_expectations) && <ReportSection id="catalyst" title="Catalyst và theo dõi">
+                {mods.catalysts_expectations && <ModuleBody m={mods.catalysts_expectations} />}
+                {p.catalysts?.length > 0 && <><h3 className="rl-sub-title">Sự kiện sắp tới</h3><CatalystBlock items={p.catalysts} /></>}
+                {p.monitoring?.length > 0 && <><h3 className="rl-sub-title">Chỉ tiêu cần theo dõi</h3><MonitoringBlock items={p.monitoring} /></>}
+              </ReportSection>}
+
+              {(p.core10 || p.committee) && <ReportSection id="phan-bien" title="Phản biện">
+                {p.core10 && <div className="rl-sub"><h3 className="rl-sub-title">10 câu hỏi cốt lõi</h3><OpinionList items={p.core10} numbered /></div>}
+                {p.committee && <div className="rl-sub"><h3 className="rl-sub-title">Hội đồng đầu tư · 6 góc nhìn</h3><OpinionList items={p.committee} labels={COMMITTEE} /></div>}
+              </ReportSection>}
+
               <ReportSection id="nguon" title="Nguồn tham khảo">
                 <SourcesBlock sources={p.sources} />
                 {p.metadata?.change_log?.length > 0 && <details className="rl-changelog"><summary>Lịch sử thay đổi (R{data.revision})</summary><BulletList items={p.metadata.change_log} /></details>}
