@@ -1,6 +1,6 @@
 // public-research-library v2: chỉ đọc bản đã xuất bản (lib_publications). Khách xem 'public';
 // người đã đăng nhập xem thêm 'members'.
-// GET ?action=list | ?action=research&ticker=FPT[&exchange=HOSE] | ?action=screening&lineage_key=... | ?action=criteria
+// GET ?action=list | ?action=research&ticker=FPT[&exchange=HOSE] | ?action=screening&lineage_key=... | ?action=criteria | ?action=glossary
 import { cors, json, serviceClient, callerId } from "../_shared/common.ts";
 
 const SUMMARY = "record_id,record_type,ticker,exchange,company,sector,universe,strategy,revision,as_of,cutoff,reporting_period," +
@@ -23,6 +23,13 @@ Deno.serve(async (req) => {
       const { data, error } = await db.from("lib_scorecard_criteria").select("criterion_id,name,weight,grp,is_critical,rubric_version").order("criterion_id");
       if (error) throw error;
       return json({ success: true, criteria: data }, 200, cache);
+    }
+    if (action === "glossary") {
+      const { data, error } = await db.from("lib_glossary_terms")
+        .select("slug,term,full_name,vi_name,industry,aliases,short_def,body,formula,example,related,auto_link,match_case,updated_at")
+        .eq("is_published", true).order("term");
+      if (error) throw error;
+      return json({ success: true, terms: data }, 200, { "Cache-Control": "public, max-age=300, s-maxage=300" });
     }
     if (action === "list") {
       const { data, error } = await db.from("lib_publications")

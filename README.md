@@ -5,6 +5,7 @@ React 18 + Vite + supabase-js. Deploy trên Vercel (project `invstocktracker`), 
 ## Trang
 - `/` – Thư viện công khai: chỉ hiện bản đã **xuất bản** (`lib_publications`). Khách xem `public`; người đã đăng nhập xem thêm `members`.
 - `/research/:ticker?exchange=HOSE`, `/screening/:lineage_key` – chi tiết bản đang công bố.
+- `/thuat-ngu`, `/thuat-ngu/:slug` – Thư viện thuật ngữ (tìm kiếm, lọc theo nhóm ngành, A→Z). Thuật ngữ trong bài đọc được tự nhận diện, rê chuột/chạm để xem định nghĩa.
 - `/admin` – Đăng nhập email + mật khẩu (Supabase Auth). Chỉ admin đang hoạt động trong `invstock.research_reviewers` thao tác được.
 
 ## Quy trình (file 08 của framework v2)
@@ -17,7 +18,8 @@ React 18 + Vite + supabase-js. Deploy trên Vercel (project `invstocktracker`), 
 ## Edge Functions
 - `lib-sync` (JWT, admin) – preview / sync / verify.
 - `lib-publish` (JWT, admin) – list / publish / unpublish.
-- `public-research-library` (không bắt JWT) – đọc bản đã xuất bản.
+- `public-research-library` (không bắt JWT) – đọc bản đã xuất bản; `?action=glossary` đọc thuật ngữ đang hiển thị.
+- `lib-glossary` (JWT, admin) – list / save / delete / import thuật ngữ (bảng `invstock.lib_glossary_terms`, không theo chuẩn JSON research).
 
 ## Môi trường
 ```env
