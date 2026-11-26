@@ -168,6 +168,10 @@ export async function previewIntegration(a) {
     if (e.path === "/metadata" || e.path === "/sources") continue; // đã kiểm ở bước 6–7
     if (!touches(scope, e.path)) B("WRITE_SET", `${e.path} đổi nhưng không nằm trong write_paths của operation`);
   }
+  // B15: không tạo bản mới khi ngoài /metadata không khối nào đổi (no-op thực chất)
+  if (!m.entries.some((e) => e.disposition === "CHANGED" && e.path !== "/metadata")) {
+    B("NO_CHANGE", "bản ứng viên không đổi khối nào ngoài /metadata; không tạo bản mới");
+  }
   for (const c of writes) {
     const blk = m.entries.find((e) => C.ptrCovers(e.path, c.path) || C.ptrCovers(c.path, e.path));
     if (blk && blk.disposition !== "CHANGED") W(`${c.path}: block ${blk.path} không đổi so với head.`);

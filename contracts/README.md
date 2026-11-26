@@ -75,6 +75,17 @@ Một tích hợp = một operation `CANDIDATE_SNAPSHOT` (đã nhập) + đúng 
 Mã lỗi thêm ở GĐ 5: `CANDIDATE_HASH_MISMATCH`, `IMPACT_REVIEW`. Giới hạn v0.1: một operation mỗi lần tích hợp; ANNOTATE chưa áp vào payload.
 Kiểm thử: `node contracts/tests/test_integration.mjs <R1.json> <R2.json>` (13 tình huống trên bytes FPT thật, operation tổng hợp).
 
+Mã lỗi thêm ở GĐ 6: `NO_CHANGE` (bản ứng viên chỉ đổi `/metadata`, không tạo bản mới).
+
+## GĐ 6 – Kiểm thử B01–B22 và đối soát
+
+- Tầng engine + validator: `node contracts/tests/test_b_series.mjs <R1.json> <R2.json> [--json out.json]`
+  (B01–B16, B21, B22 và tình huống nhiều operation; operation tổng hợp trên bytes FPT thật).
+- Tầng DB: `node contracts/tools/gen_gd6_sql.mjs <thư mục operation/candidate/manifest> <out.sql>` sinh một khối DO tự ROLLBACK
+  kiểm tra B03, B11, B13, B16, B18, B19, B20 và chốt "tích hợp không tự xuất bản". File SQL chứa bytes báo cáo nên **không commit**.
+- B17 (hai admin duyệt cùng lúc) chạy bằng hai phiên psql trên DB cục bộ: phiên sau chờ khoá rồi nhận `unchanged`.
+- Đối soát chỉ đọc trên DB thật: bytes/sha, chuỗi revision, manifest 27 khối, bản đang xuất bản, RLS, quyền RPC, trigger bất biến.
+
 ## Sau khi duyệt (GĐ 3–6, mỗi bước một PR, backup trước, chỉ thêm mới)
 
 - **GĐ 3, Registry**: bảng `lib_blocks`, `lib_block_versions`, `lib_manifests` và `lib_manifest_entries`, RLS chặn mặc định. Backfill manifest FPT R1/R2 từ bytes gốc.
