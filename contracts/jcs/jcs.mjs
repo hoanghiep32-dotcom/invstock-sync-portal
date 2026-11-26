@@ -7,6 +7,10 @@ export const CANONICALIZATION_VERSION = "JCS-RFC8785/invstock-1";
 
 export class JcsError extends Error {}
 
+// Regex "sticky" (cờ y) đọc tại vị trí i, tránh cắt chuỗi lặp lại với file lớn.
+const STR = /"(?:[^"\\\u0000-\u001f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/y;
+const NUM = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
+
 export function parseStrict(text) {
   let i = 0;
   const ws = () => { while (i < text.length && " \t\n\r".includes(text[i])) i++; };
@@ -48,13 +52,15 @@ export function parseStrict(text) {
     }
   }
   function string() {
-    const m = /^"(?:[^"\\\u0000-\u001f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/.exec(text.slice(i));
+    STR.lastIndex = i;
+    const m = STR.exec(text);
     if (!m) fail("invalid string");
     i += m[0].length;
     return JSON.parse(m[0]);
   }
   function number() {
-    const m = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(text.slice(i));
+    NUM.lastIndex = i;
+    const m = NUM.exec(text);
     if (!m) fail("invalid value");
     i += m[0].length;
     const n = Number(m[0]);

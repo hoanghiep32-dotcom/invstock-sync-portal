@@ -130,7 +130,7 @@ export default function GlossaryAdminPanel({ session, callFn }) {
   const industries = useMemo(() => [...new Set(terms.map(t => t.industry))].sort((a, b) => (INDUSTRIES[a]?.order ?? 50) - (INDUSTRIES[b]?.order ?? 50)), [terms])
 
   return <section className="panel gla">
-    <div className="section-head"><h2>3. Thư viện thuật ngữ</h2>
+    <div className="section-head"><h2>4. Thư viện thuật ngữ</h2>
       <div className="file-row" style={{ margin: 0 }}>
         <a className="button subtle" href="/thuat-ngu" target="_blank" rel="noreferrer">Xem trang công khai ↗</a>
         <button className="button subtle" onClick={() => setBulkOpen(!bulkOpen)}>{bulkOpen ? 'Đóng nhập nhanh' : 'Nhập nhanh nhiều thuật ngữ'}</button>

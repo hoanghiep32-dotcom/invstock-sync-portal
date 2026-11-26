@@ -567,3 +567,25 @@ a.rl-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow
 .rl-block-matrix th small code{font-size:10.5px}
 .rl-block-matrix td{white-space:nowrap}
 .rl-bm-changed{background:color-mix(in srgb,var(--accent-soft) 55%,transparent);color:var(--accent)}
+
+/* GĐ 3–4: chuyên đề và manifest khối */
+.rl-note-tag{text-decoration:none;background:var(--teal-bg);color:var(--teal)}
+.rl-note-tag:hover{text-decoration:underline}
+.rl-note-list{display:grid;gap:12px;margin-top:12px}
+.rl-note-card{display:block;padding:16px 18px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:inherit;text-decoration:none}
+.rl-note-card:hover{border-color:var(--accent)}
+.rl-note-card h3{font-size:17px;font-weight:700;margin:4px 0 10px;color:var(--text)}
+.rl-note-kicker{font-size:12px;color:var(--muted);letter-spacing:.02em}
+.rl-note-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:13px;color:var(--text-2)}
+.rl-note-notice{margin:0 0 22px;padding:10px 14px;border-left:3px solid var(--teal);background:var(--teal-bg);border-radius:6px;font-size:13.5px;color:var(--text-2)}
+.rl-note-page{--reader-scale:1}
+.rl-md h2,.rl-md h3,.rl-md h4,.rl-md h5{font-weight:700;margin:22px 0 8px}
+.rl-md h2{font-size:20px}.rl-md h3{font-size:17px}.rl-md h4,.rl-md h5{font-size:15px}
+.rl-md p,.rl-md ul,.rl-md ol,.rl-md blockquote,.rl-md pre{margin:0 0 12px;line-height:1.7}
+.rl-md ul,.rl-md ol{padding-left:22px}
+.rl-md blockquote{padding:4px 14px;border-left:3px solid var(--line-2);color:var(--text-2)}
+.rl-md pre{padding:10px 12px;background:var(--surface-2);border-radius:6px;overflow-x:auto;font-size:13px}
+.rl-md code{font-size:.92em;background:var(--surface-2);padding:0 4px;border-radius:4px}
+.rl-md pre code{background:none;padding:0}
+.rl-impact{list-style:none;padding:0;display:grid;gap:8px}
+.rl-bm-rev{display:block;font-size:11px;color:var(--muted);margin-top:2px}

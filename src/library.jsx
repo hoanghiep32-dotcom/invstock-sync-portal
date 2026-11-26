@@ -1237,14 +1237,35 @@ const BLOCK_STATE = {
 // Nhãn cạnh tiêu đề mục: khối này đổi ở bản đang đọc hay giữ nguyên từ bản trước.
 function BlockTag({ paths, standalone = false }) {
   const ctx = useContext(BlockContext)
-  if (!ctx || ctx.count < 2) return null
-  const rows = paths.map(p => ctx.at[p]).filter(r => r && r.state !== 'ABSENT')
-  if (!rows.length) return null
-  const changed = rows.some(r => r.state === 'CHANGED')
-  const since = Math.max(...rows.map(r => r.since || 0))
-  const text = changed ? `Cập nhật ở R${ctx.revision}` : rows.every(r => r.state === 'INITIAL') ? `Từ R${ctx.revision}` : `Giữ nguyên từ R${since}`
-  const tag = <span className={`rl-block-tag ${changed ? 'changed' : ''}`} title={changed ? `Nội dung khác bản R${ctx.prevRevision}` : `Nội dung giống bản R${ctx.prevRevision}`}>{text}</span>
-  return standalone ? <div className="rl-block-tag-line">{tag}</div> : tag
+  const notes = useContext(NotesContext)
+  const linked = notes ? [...new Map(paths.flatMap(p => notes.byPath[p] || []).map(n => [n.note_version_id, n])).values()] : []
+  const noteTag = linked.length > 0 && <a className="rl-block-tag rl-note-tag" href={notes.href(linked.length === 1 ? linked[0] : null)}
+    title={linked.map(n => n.title).join('\n')}>{linked.length === 1 ? 'Chuyên đề liên quan' : `${linked.length} chuyên đề liên quan`}</a>
+  let tag = null
+  if (ctx && ctx.count >= 2) {
+    const rows = paths.map(p => ctx.at[p]).filter(r => r && r.state !== 'ABSENT')
+    if (rows.length) {
+      const changed = rows.some(r => r.state === 'CHANGED')
+      const since = Math.max(...rows.map(r => r.since || 0))
+      const text = changed ? `Cập nhật ở R${ctx.revision}` : rows.every(r => r.state === 'INITIAL') ? `Từ R${ctx.revision}` : `Giữ nguyên từ R${since}`
+      tag = <span className={`rl-block-tag ${changed ? 'changed' : ''}`} title={changed ? `Nội dung khác bản R${ctx.prevRevision}` : `Nội dung giống bản R${ctx.prevRevision}`}>{text}</span>
+    }
+  }
+  if (!tag && !noteTag) return null
+  return standalone ? <div className="rl-block-tag-line">{tag}{noteTag}</div> : <>{tag}{noteTag}</>
+}
+
+// Chuyên đề đã xuất bản theo mục (chỉ dùng cho bản hiện hành: không ghép chuyên đề mới vào bản lịch sử).
+const NotesContext = createContext(null)
+const noteHref = (item, id) => `/research/${encodeURIComponent(item.ticker)}/n/${id}?exchange=${encodeURIComponent(item.exchange || 'HOSE')}`
+function NotesProvider({ item, notes, children }) {
+  const value = useMemo(() => {
+    if (!notes?.length) return null
+    const byPath = {}
+    notes.forEach(n => (n.links || []).forEach(l => { (byPath[`/modules/${l.module_key}`] ||= []).push(n) }))
+    return { byPath, href: n => n ? noteHref(item, n.note_version_id) : profileHref(item, 'chuyen-de') }
+  }, [notes, item.ticker, item.exchange]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>
 }
 
 function BlockProvider({ data, history, children }) {
@@ -1261,8 +1282,12 @@ function BlockProvider({ data, history, children }) {
 }
 
 // Bảng khối × bản: đọc nhanh khối nào đổi ở từng revision.
-function BlockMatrix({ history }) {
+const REG_STATE = { CHANGED: 'Cập nhật', INHERITED: 'Giữ nguyên', INITIAL: 'Bản đầu' }
+function BlockMatrix({ history, item }) {
   const versions = useVersions(history, null)
+  const reg = useApi(item ? { action: 'blocks', ticker: item.ticker, exchange: item.exchange } : null, [item?.ticker, item?.exchange])
+  const regRecords = reg.data?.records || []
+  if (regRecords.length >= 1 && regRecords.length >= versions.length) return <RegistryMatrix records={regRecords} />
   if (versions.length < 2) return null
   const lin = blockLineage(versions)
   const changedCount = v => BLOCKS.filter(b => lin[b.path][v].state === 'CHANGED').length
@@ -1276,6 +1301,26 @@ function BlockMatrix({ history }) {
         {lin[b.path].map((c, i) => <td key={i} className={`rl-bm-${c.state.toLowerCase()}`}>
           {c.state === 'ABSENT' ? <span className="rl-muted">—</span> : c.state === 'CHANGED' ? <b>Cập nhật</b> : c.state === 'INITIAL' ? 'Bản đầu' : <span className="rl-muted">Giữ nguyên</span>}
         </td>)}
+      </tr>)}</tbody>
+    </table></div>
+  </>
+}
+
+// Bảng khối × bản theo manifest chính thức (registry, tài liệu 13): B<n> là phiên bản của khối.
+function RegistryMatrix({ records }) {
+  const at = records.map(r => Object.fromEntries(r.blocks.map(b => [b.path, b])))
+  const changedCount = i => BLOCKS.filter(b => at[i][b.path]?.disposition === 'CHANGED').length
+  return <>
+    <h2 className="rl-ptab-h">Khối nội dung theo từng bản</h2>
+    <p className="rl-muted rl-small">Theo manifest khối của từng bản, dựng từ dữ liệu gốc đã duyệt. <b>B</b> là phiên bản của khối: khối giữ nguyên thì giữ số cũ, khối cập nhật thì tăng số.{records.some(r => r.provenance_kind === 'LEGACY_BACKFILL') && ' Manifest của các bản cũ được lập bổ sung sau khi xuất bản.'}</p>
+    <div className="rl-table-wrap"><table className="rl-table rl-block-matrix">
+      <thead><tr><th scope="col">Khối</th>{records.map((r, i) => <th key={r.record_id} scope="col">R{r.revision}{i > 0 && <small>{changedCount(i)} khối đổi</small>}</th>)}</tr></thead>
+      <tbody>{BLOCKS.map(b => <tr key={b.path}>
+        <th scope="row">{b.title}<small><code>{b.path}</code></small></th>
+        {at.map((row, i) => { const c = row[b.path]; return <td key={i} className={c ? `rl-bm-${c.disposition.toLowerCase()}` : ''}>
+          {!c ? <span className="rl-muted">—</span> : <>{c.disposition === 'CHANGED' ? <b>{REG_STATE.CHANGED}</b> : c.disposition === 'INHERITED' ? <span className="rl-muted">{REG_STATE.INHERITED}</span> : REG_STATE.INITIAL}
+            <small className="rl-bm-rev">B{c.block_revision}{c.change_class === 'SOURCE_REMAP' ? ' · chỉ đổi mã nguồn' : ''}</small></>}
+        </td> })}
       </tr>)}</tbody>
     </table></div>
   </>
@@ -1296,11 +1341,11 @@ const ROLE = {
 const recordHref = (item, id) => `/research/${encodeURIComponent(item.ticker)}/r/${id}?exchange=${encodeURIComponent(item.exchange || 'HOSE')}`
 const profileHref = (item, tab) => researchHref(item) + (tab && tab !== 'tong-quan' ? `&tab=${tab}` : '')
 
-function ProfileTabs({ item, tab, history }) {
+function ProfileTabs({ item, tab, history, noteCount = 0 }) {
   const n = history?.items?.length || 0
   return <nav className="rl-ptabs" aria-label="Hồ sơ cổ phiếu">
     {PROFILE_TABS.map(t => <a key={t.id} href={profileHref(item, t.id)} className={tab === t.id ? 'active' : ''} aria-current={tab === t.id ? 'page' : undefined}>
-      {t.title}{t.id === 'lich-su' && n > 0 && <small>{n}</small>}
+      {t.title}{t.id === 'lich-su' && n > 0 && <small>{n}</small>}{t.id === 'chuyen-de' && noteCount > 0 && <small>{noteCount}</small>}
     </a>)}
   </nav>
 }
@@ -1322,6 +1367,7 @@ function ResearchPage({ ticker, exchange, tab }) {
   const item = { ticker, exchange }
   const report = useApi({ action: 'research', ticker, exchange }, [ticker, exchange])
   const history = useApi({ action: 'history', ticker, exchange }, [ticker, exchange])
+  const notes = useApi({ action: 'notes', ticker, exchange }, [ticker, exchange])
   const crit = useApi({ action: 'criteria' }, [])
   const [size, setSize] = useReaderSize()
   const data = report.data
@@ -1354,16 +1400,16 @@ function ResearchPage({ ticker, exchange, tab }) {
             kicker={`Full Research · R${data.revision} · Dữ liệu đến ${dateText(data.cutoff)}`}
             title={<>{data.company || ticker} <span className="rl-ticker-pill">{ticker} · {data.exchange}</span></>}
             sub={`${data.sector || ''}${data.reporting_period ? ` · Kỳ báo cáo: ${data.reporting_period}` : ''}`} />
-          <ProfileTabs item={item} tab={tab} history={history.data} />
+          <ProfileTabs item={item} tab={tab} history={history.data} noteCount={notes.data?.notes?.length || 0} />
           {overview && <>
             <RecordStatus data={data} role="current" />
             <KeyFacts data={data} p={p} />
-            <BlockProvider data={data} history={history.data}><div className="rl-layout">
+            <NotesProvider item={item} notes={notes.data?.notes}><BlockProvider data={data} history={history.data}><div className="rl-layout">
               <SectionNav sections={sections} active={active} />
               <ResearchArticle data={data} criteria={crit.data?.criteria} />
-            </div></BlockProvider>
+            </div></BlockProvider></NotesProvider>
           </>}
-          {tab === 'chuyen-de' && <TopicsTab ticker={ticker} />}
+          {tab === 'chuyen-de' && <TopicsTab item={item} notes={notes} current={data} />}
           {tab === 'cap-nhat' && <UpdatesTab item={item} history={history} />}
           {tab === 'lich-su' && <HistoryTab item={item} history={history} currentId={data.record_id} />}
         </>}
@@ -1374,12 +1420,146 @@ function ResearchPage({ ticker, exchange, tab }) {
   </SourcesContext.Provider>
 }
 
-function TopicsTab({ ticker }) {
+const NOTE_TOPIC = { OWNERSHIP: 'Sở hữu', FORENSICS: 'Chất lượng lợi nhuận', RISK: 'Rủi ro', EVENT: 'Sự kiện', INDUSTRY: 'Ngành',
+  VALUATION: 'Định giá', GOVERNANCE: 'Quản trị', OTHER: 'Chuyên đề' }
+const NOTE_OUTCOME = {
+  SUPPLEMENT_ONLY: { vi: 'Bổ sung tham khảo', tone: 'gray' },
+  PROPOSE_INTEGRATION: { vi: 'Đề xuất đưa vào bản sau', tone: 'blue' },
+  URGENT_REVIEW: { vi: 'Cần rà soát gấp', tone: 'red' }
+}
+
+function TopicsTab({ item, notes, current }) {
+  const list = notes.data?.notes || []
   return <section className="rl-ptab-body">
-    <Empty>Chưa có bài chuyên đề nào cho {ticker}.<br />
+    {notes.loading && <Skeleton rows={2} />}
+    {notes.error && <Empty tone="error">Chưa tải được chuyên đề ({notes.error}).</Empty>}
+    {!notes.loading && !notes.error && !list.length && <Empty>Chưa có bài chuyên đề nào cho {item.ticker}.<br />
       <span className="rl-small">Chuyên đề (Deep Dive, sở hữu, chất lượng lợi nhuận…) được duyệt và xuất bản riêng, hiển thị tại đây và tại đúng mục của bài. Chuyên đề không tự thay đổi định giá, điểm hay quyết định của bản hiện hành.</span>
-    </Empty>
+    </Empty>}
+    {list.length > 0 && <>
+      <p className="rl-muted rl-small">Chuyên đề được duyệt và xuất bản riêng. Chúng không tự thay đổi định giá, điểm hay quyết định của bản hiện hành{current ? ` (R${current.revision})` : ''}; khi được tích hợp sẽ có bản mới.</p>
+      <div className="rl-note-list">{list.map(n => <NoteCard key={n.note_version_id} item={item} n={n} current={current} />)}</div>
+    </>}
   </section>
+}
+
+function NoteCard({ item, n, current }) {
+  const primary = (n.links || []).find(l => l.role === 'PRIMARY')
+  const other = (n.links || []).filter(l => l.role !== 'PRIMARY')
+  return <a className="rl-note-card" href={noteHref(item, n.note_version_id)}>
+    <div className="rl-note-kicker">{NOTE_TOPIC[n.topic] || n.topic} · Dữ liệu đến {dateText(n.cutoff)}{n.note_version > 1 ? ` · Phiên bản ${n.note_version}` : ''}</div>
+    <h3>{n.title}</h3>
+    <div className="rl-note-meta">
+      <Badge map={NOTE_OUTCOME} value={n.outcome} code={false} />
+      {primary && <span>Mục chính: <b>{MODULES[primary.module_key] || primary.module_key}</b></span>}
+      {other.length > 0 && <span>Liên quan: {other.map(l => MODULES[l.module_key] || l.module_key).join(', ')}</span>}
+      {current && n.base_record_id && n.base_record_id !== current.record_id && <span className="rl-muted">Viết trên một bản trước bản hiện hành</span>}
+      {n.visibility === 'members' && <span className="rl-muted">Dành cho thành viên</span>}
+    </div>
+  </a>
+}
+
+// Markdown tối giản và an toàn (không dùng HTML thô): tiêu đề, đoạn, danh sách, trích dẫn, code, đậm/nghiêng, liên kết http(s).
+function mdInline(text, key = 0) {
+  const out = []
+  const re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\((https?:\/\/[^)\s]+)\))/g
+  let last = 0, m, i = 0
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push(<Term key={`${key}-t${i++}`}>{text.slice(last, m.index)}</Term>)
+    const t = m[0]
+    if (t.startsWith('**')) out.push(<strong key={`${key}-${i++}`}>{t.slice(2, -2)}</strong>)
+    else if (t.startsWith('`')) out.push(<code key={`${key}-${i++}`}>{t.slice(1, -1)}</code>)
+    else if (t.startsWith('[')) out.push(<a key={`${key}-${i++}`} href={m[2]} target="_blank" rel="noopener noreferrer">{t.slice(1, t.indexOf(']'))}</a>)
+    else out.push(<em key={`${key}-${i++}`}>{t.slice(1, -1)}</em>)
+    last = m.index + t.length
+  }
+  if (last < text.length) out.push(<Term key={`${key}-t${i++}`}>{text.slice(last)}</Term>)
+  return out
+}
+function Markdown({ text }) {
+  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n')
+  const blocks = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    if (!line.trim()) { i++; continue }
+    if (line.startsWith('```')) {
+      const body = []; i++
+      while (i < lines.length && !lines[i].startsWith('```')) body.push(lines[i++])
+      i++; blocks.push(<pre key={blocks.length}><code>{body.join('\n')}</code></pre>); continue
+    }
+    const h = /^(#{1,4})\s+(.*)$/.exec(line)
+    if (h) { const L = Math.min(h[1].length + 1, 5); blocks.push(React.createElement(`h${L}`, { key: blocks.length }, mdInline(h[2], blocks.length))); i++; continue }
+    if (/^\s*([-*]|\d+\.)\s+/.test(line)) {
+      const ordered = /^\s*\d+\./.test(line), items = []
+      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*([-*]|\d+\.)\s+/, ''))
+      const Tag = ordered ? 'ol' : 'ul'
+      blocks.push(<Tag key={blocks.length}>{items.map((t, k) => <li key={k}>{mdInline(t, `${blocks.length}-${k}`)}</li>)}</Tag>); continue
+    }
+    if (line.startsWith('>')) {
+      const body = []
+      while (i < lines.length && lines[i].startsWith('>')) body.push(lines[i++].replace(/^>\s?/, ''))
+      blocks.push(<blockquote key={blocks.length}>{mdInline(body.join(' '), blocks.length)}</blockquote>); continue
+    }
+    const para = []
+    while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|```|>|\s*([-*]|\d+\.)\s)/.test(lines[i])) para.push(lines[i++])
+    blocks.push(<p key={blocks.length}>{mdInline(para.join(' '), blocks.length)}</p>)
+  }
+  return <div className="rl-md">{blocks}</div>
+}
+
+const EVIDENCE_KIND = { FACT: 'Dữ kiện', METRIC: 'Chỉ số', ASSUMPTION: 'Giả định', EXTERNAL_VIEW: 'Quan điểm bên ngoài', COUNTEREVIDENCE: 'Phản chứng' }
+const EVIDENCE_STATUS = { VERIFIED: 'Đã xác minh', REPORTED: 'Theo công bố', ESTIMATED: 'Ước tính', UNVERIFIED: 'Chưa xác minh' }
+const IMPACT = { CHANGE: { vi: 'Cần thay đổi', tone: 'blue' }, NO_CHANGE: { vi: 'Không đổi', tone: 'gray' }, NEEDS_REVIEW: { vi: 'Cần rà soát', tone: 'amber' } }
+
+// Trang đọc một chuyên đề (đường dẫn cố định theo note_version_id).
+function NotePage({ ticker, exchange, id }) {
+  const item = { ticker, exchange }
+  const res = useApi({ action: 'note', id }, [id])
+  const n = res.data
+  const p = n?.payload || {}
+  const sourceMap = useMemo(() => Object.fromEntries((p.sources || []).map(s => [s.id, s])), [p.sources])
+  const path = noteHref(item, id)
+  const title = n ? n.title : `${ticker} · chuyên đề`
+  useEffect(() => { document.title = `${title} · InvStock` }, [title])
+  useEffect(() => { if (n) upsertTab({ path, kind: 'note', title: `${ticker} · ${NOTE_TOPIC[n.topic] || 'Chuyên đề'}`, sub: n.title }) }, [path, n?.title]) // eslint-disable-line react-hooks/exhaustive-deps
+  const primary = (n?.links || []).find(l => l.role === 'PRIMARY')
+  return <SourcesContext.Provider value={sourceMap}>
+    <div className="rl rl-reader">
+      <TopBar>{n && <div className="rl-topbar-title"><b>{ticker}</b><span>{NOTE_TOPIC[n.topic] || 'Chuyên đề'}</span></div>}</TopBar>
+      <main className="rl-main rl-note-page">
+        <a className="rl-back" href={profileHref(item, 'chuyen-de')}>← Chuyên đề của {ticker}</a>
+        {res.loading && <Skeleton rows={4} />}
+        {res.error && <Empty tone="error">Không mở được chuyên đề ({res.error}). Chuyên đề có thể đã thu hồi hoặc chỉ dành cho thành viên.</Empty>}
+        {n && <>
+          <ReportHeader kicker={`${NOTE_TOPIC[n.topic] || 'Chuyên đề'} · ${ticker} · Dữ liệu đến ${dateText(n.cutoff)}`} title={n.title}
+            sub={`Thời điểm đánh giá ${dateText(n.as_of)} · Công bố ${dateText(n.published_at)}${n.note_version > 1 ? ` · Phiên bản ${n.note_version}` : ''}`} />
+          <div className="rl-status-line">
+            <Badge map={NOTE_OUTCOME} value={n.outcome} code={false} />
+            {primary && <span>Mục chính <b>{MODULES[primary.module_key] || primary.module_key}</b></span>}
+            {p.base && <span>Viết trên <a href={recordHref(item, p.base.record_id)}>R{p.base.revision}</a></span>}
+            {!p.base && <span className="rl-muted">Chưa có bản Full Research làm cơ sở</span>}
+          </div>
+          <div className="rl-note-notice">Chuyên đề là nghiên cứu bổ sung. Nó không tự thay đổi định giá, điểm hay quyết định của bản hiện hành.</div>
+          <section className="rl-section"><h2>Câu hỏi nghiên cứu</h2><p><Term>{p.research_question}</Term></p><p className="rl-muted rl-small">Phạm vi: <Term>{p.scope}</Term></p></section>
+          <section className="rl-section"><Markdown text={p.body?.text} /></section>
+          {p.evidence?.length > 0 && <section className="rl-section"><h2>Bằng chứng</h2>
+            <div className="rl-table-wrap"><table className="rl-table"><thead><tr><th>Loại</th><th>Nội dung</th><th className="num">Giá trị</th><th>Kỳ</th><th>Trạng thái</th><th>Nguồn</th></tr></thead>
+              <tbody>{p.evidence.map((e, k) => <tr key={k}><td>{EVIDENCE_KIND[e.kind] || e.kind}</td><td><Term>{e.statement}</Term></td>
+                <td className="num">{e.value == null ? '—' : typeof e.value === 'number' ? num(e.value) : e.value}{e.unit ? ` ${e.unit}` : ''}</td>
+                <td>{e.period || '—'}</td><td>{EVIDENCE_STATUS[e.status] || e.status}</td><td><Refs ids={e.source_ids} /></td></tr>)}</tbody></table></div>
+          </section>}
+          {p.risks?.length > 0 && <section className="rl-section"><h2>Rủi ro</h2><BulletList items={p.risks} /></section>}
+          {p.gaps?.length > 0 && <section className="rl-section"><Gaps title="Còn thiếu" items={p.gaps.map(g => `${g.description} (${g.materiality === 'MATERIAL' ? 'trọng yếu' : 'nhỏ'}): ${g.impact}`)} /></section>}
+          {p.impact_review?.length > 0 && <section className="rl-section"><h2>Tác động tới bài chính</h2>
+            <ul className="rl-impact">{p.impact_review.map((r, k) => <li key={k}><code>{r.path}</code> <Badge map={IMPACT} value={r.result} code={false} /> <Term>{r.reason}</Term></li>)}</ul>
+          </section>}
+          {p.sources?.length > 0 && <SourcesBlock sources={p.sources} />}
+        </>}
+      </main>
+      <Footer />
+    </div>
+  </SourcesContext.Provider>
 }
 
 function HistoryState({ history }) {
@@ -1496,7 +1676,7 @@ function HistoryTab({ item, history, currentId }) {
         </tr>)}</tbody>
     </table></div>}
     {pair.length === 2 && <><h2 className="rl-ptab-h">So sánh R{pair[0].revision} và R{pair[1].revision}</h2><RevisionDiff a={pair[0]} b={pair[1]} /></>}
-    <BlockMatrix history={history.data} />
+    <BlockMatrix history={history.data} item={item} />
     {readable.length === 1 && <p className="rl-muted rl-small">Mới có một bản được xuất bản. Khi có bản mới, bản cũ vẫn đọc được tại đây.</p>}
   </section>
 }
@@ -1860,12 +2040,14 @@ function LibraryRoutes() {
   const exchange = (url.searchParams.get('exchange') || 'HOSE').toUpperCase()
   const ticker = path[0] === 'research' && path[1] ? decodeURIComponent(path[1]).toUpperCase() : ''
   const recordId = ticker && path[2] === 'r' && /^[0-9a-f-]{36}$/i.test(path[3] || '') ? path[3].toLowerCase() : ''
+  const noteId = ticker && path[2] === 'n' && /^[0-9a-f-]{36}$/i.test(path[3] || '') ? path[3].toLowerCase() : ''
   const tabParam = url.searchParams.get('tab')
   const tab = PROFILE_TABS.some(t => t.id === tabParam) ? tabParam : 'tong-quan'
   // Chuẩn hóa địa chỉ bài để tab nhận ra cùng một bài (ví dụ /research/fpt → /research/FPT?exchange=HOSE).
-  const canonical = recordId ? recordHref({ ticker, exchange }, recordId) : ticker ? profileHref({ ticker, exchange }, tab) : ''
+  const canonical = recordId ? recordHref({ ticker, exchange }, recordId) : noteId ? noteHref({ ticker, exchange }, noteId) : ticker ? profileHref({ ticker, exchange }, tab) : ''
   useEffect(() => { if (canonical && canonical !== loc) navigate(canonical + window.location.hash, { replace: true }) }, [canonical, loc])
   useEffect(() => { if (path[0] !== 'compare' && path.length) patchTabs({ last: loc }) }, [loc]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (noteId) return <NotePage key={canonical} ticker={ticker} exchange={exchange} id={noteId} />
   if (recordId) return <RecordPage key={canonical} ticker={ticker} exchange={exchange} id={recordId} />
   if (ticker) return <ResearchPage key={researchHref({ ticker, exchange })} ticker={ticker} exchange={exchange} tab={tab} />
   if (path[0] === 'screening' && path[1]) return <ScreeningPage key={loc} lineageKey={decodeURIComponent(path[1])} />
