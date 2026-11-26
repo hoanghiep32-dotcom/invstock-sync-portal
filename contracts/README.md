@@ -53,6 +53,39 @@ Cần Python 3.10+ và `jsonschema` 4.18+. Bytes gốc của FPT không nằm tr
 
 Manifest R1 có 27 entry đều là `INITIAL`. Manifest R2 (cha là R1) có `schema_name`, `schema_version` và `identity` ở trạng thái `INHERITED`; 24 entry còn lại là `CHANGED / CONTENT`, khớp với việc R2 là bản Update toàn phần. Cả hai đều PASS khi đối chiếu với bytes gốc (sha 798e1b8f…f7ad và 7820631c…cc84). Đưa nhầm snapshot vào thì validator báo `MANIFEST_MISMATCH`.
 
+## GĐ 5 – Integration Engine (tích hợp operation thành bản mới)
+
+Một tích hợp = một operation `CANDIDATE_SNAPSHOT` (đã nhập) + đúng file Full JSON ứng viên có SHA-256 ghi trong `output_refs`.
+
+1. Người lập dựng ứng viên từ head: `node contracts/tools/build_candidate.mjs <operation_nháp.json> <head.json> <thư_mục_ra>`
+   (áp REPLACE/RECALCULATE, đặt record_id/revision/parent_id, ghi change_log, điền `output_refs`). Giá trị liên đới
+   (EPS, FV, MOS, điểm…) phải nằm sẵn trong `changes`; engine không tự tính lại.
+2. Admin **xem trước** (`preview_integration`): engine (`supabase/functions/_shared/contracts/integration.js`) kiểm tra
+   - hash file = `output_refs.candidate_sha256`; schema 02 + rubric (validator.js);
+   - lineage: parent = head thực tế, revision = head + 1, record_id = `output_refs.candidate_record_id`;
+   - base cũ hơn head: so ba chiều base/head trên mọi path đọc/ghi (`BLOCK_CONFLICT`, `DEPENDENCY_CHANGED`);
+   - giá trị tại path ghi = `candidate_value`; mọi block đổi phải nằm trong `write_paths` (riêng `/metadata`, `/sources` có luật riêng);
+   - nguồn cũ giữ nguyên, nguồn mới phải khai báo trong operation (`SOURCE_BINDING_CONFLICT`); `NEEDS_REVIEW` chặn tích hợp;
+   - dựng manifest nối tiếp manifest head, gắn `operation_ids`/`note_ids`; tính **bundle hash**
+     `sha256(JCS{bundle:"invstock-integration-bundle/v1", candidate_sha256, head_record_id, head_sha256, manifest_sha256, operation_sha256})`.
+3. Admin **duyệt đúng bundle hash** (`approve_integration`): RPC `lib_integrate` khóa theo mã, kiểm tra lại head, hash, lineage,
+   bundle; ghi `lib_records` + manifest + block versions + `lib_integrations` + audit trong **một transaction**, rồi đọc lại bytes.
+   Bản mới **chưa xuất bản**; xuất bản vẫn theo doc 12 ở mục 2 của trang quản trị.
+
+Mã lỗi thêm ở GĐ 5: `CANDIDATE_HASH_MISMATCH`, `IMPACT_REVIEW`. Giới hạn v0.1: một operation mỗi lần tích hợp; ANNOTATE chưa áp vào payload.
+Kiểm thử: `node contracts/tests/test_integration.mjs <R1.json> <R2.json>` (13 tình huống trên bytes FPT thật, operation tổng hợp).
+
+Mã lỗi thêm ở GĐ 6: `NO_CHANGE` (bản ứng viên chỉ đổi `/metadata`, không tạo bản mới).
+
+## GĐ 6 – Kiểm thử B01–B22 và đối soát
+
+- Tầng engine + validator: `node contracts/tests/test_b_series.mjs <R1.json> <R2.json> [--json out.json]`
+  (B01–B16, B21, B22 và tình huống nhiều operation; operation tổng hợp trên bytes FPT thật).
+- Tầng DB: `node contracts/tools/gen_gd6_sql.mjs <thư mục operation/candidate/manifest> <out.sql>` sinh một khối DO tự ROLLBACK
+  kiểm tra B03, B11, B13, B16, B18, B19, B20 và chốt "tích hợp không tự xuất bản". File SQL chứa bytes báo cáo nên **không commit**.
+- B17 (hai admin duyệt cùng lúc) chạy bằng hai phiên psql trên DB cục bộ: phiên sau chờ khoá rồi nhận `unchanged`.
+- Đối soát chỉ đọc trên DB thật: bytes/sha, chuỗi revision, manifest 27 khối, bản đang xuất bản, RLS, quyền RPC, trigger bất biến.
+
 ## Sau khi duyệt (GĐ 3–6, mỗi bước một PR, backup trước, chỉ thêm mới)
 
 - **GĐ 3, Registry**: bảng `lib_blocks`, `lib_block_versions`, `lib_manifests` và `lib_manifest_entries`, RLS chặn mặc định. Backfill manifest FPT R1/R2 từ bytes gốc.

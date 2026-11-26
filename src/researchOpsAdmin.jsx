@@ -1,15 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react'
 
-// GĐ 3–4 (tài liệu 13): manifest khối, chuyên đề (Research Note) và tác vụ (Research Operation).
-// Mọi bước đều qua Edge Function lib-research-ops (chỉ admin). Không bước nào đổi bản hiện hành của snapshot.
+// GĐ 3–5 (tài liệu 13): manifest khối, chuyên đề (Research Note), tác vụ (Research Operation) và tích hợp.
+// Mọi bước đều qua Edge Function lib-research-ops (chỉ admin). Không bước nào đổi bản hiện hành: tích hợp tạo bản mới chưa xuất bản.
 
 const ERR_VI = {
   APPROVAL_HASH_MISMATCH: 'Nội dung đã khác bản anh/chị vừa xem (sai SHA-256). Tải lại rồi duyệt lại.',
   not_approved: 'Chuyên đề chưa được duyệt.',
   reason_required: 'Cần nhập lý do.',
   manifest_not_registered: 'Bản này chưa có manifest.',
-  validation_failed: 'File chưa đạt contract, xem danh sách lỗi.'
+  validation_failed: 'File chưa đạt contract, xem danh sách lỗi.',
+  integration_blocked: 'Chưa tích hợp được, xem danh sách lỗi.',
+  BASE_STALE: 'Head của mã đã đổi sau khi xem trước. Xem trước lại rồi duyệt lại.',
+  approval_text_required: 'Cần nhập nội dung phê duyệt (ít nhất 8 ký tự).'
 }
+const DISP_VI = { INHERITED: 'kế thừa', CHANGED: 'đổi', INITIAL: 'mới' }
 const STATUS_VI = { draft: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' }
 const TOPIC_VI = { OWNERSHIP: 'Sở hữu', FORENSICS: 'Chất lượng lợi nhuận', RISK: 'Rủi ro', EVENT: 'Sự kiện', INDUSTRY: 'Ngành',
   VALUATION: 'Định giá', GOVERNANCE: 'Quản trị', OTHER: 'Khác' }
@@ -31,7 +35,7 @@ function Errors({ list }) {
 function JsonInput({ value, onChange, placeholder }) {
   return <>
     <div className="file-row">
-      <input type="file" accept=".json,application/json" onChange={async e => { const f = e.target.files?.[0]; if (f) onChange(await f.text()) }} />
+      <input type="file" accept=".json,application/json" style={{ maxWidth: "100%" }} onChange={async e => { const f = e.target.files?.[0]; if (f) onChange(await f.text()) }} />
       {value && <button className="button subtle" onClick={() => onChange('')}>Xóa</button>}
     </div>
     <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={5}
@@ -67,6 +71,49 @@ function ImportBox({ kind, session, callFn, onDone }) {
   </div>
 }
 
+// GĐ 5: tích hợp một operation CANDIDATE_SNAPSHOT thành bản mới. Xem trước → duyệt đúng bundle hash → tạo bản (chưa xuất bản).
+function IntegrationBox({ op, session, callFn, onDone }) {
+  const [text, setText] = useState('')
+  const [pv, setPv] = useState(null)
+  const [approval, setApproval] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  async function preview() {
+    setBusy(true); setMsg('')
+    const r = await callFn('lib-research-ops', { action: 'preview_integration', operation_id: op.operation_id, text }, session)
+    setBusy(false)
+    if (!r.data?.result) { setPv(null); setMsg(errText(r.data)); return }
+    setPv(r.data.result)
+  }
+  async function approve() {
+    setBusy(true); setMsg('')
+    const r = await callFn('lib-research-ops', { action: 'approve_integration', operation_id: op.operation_id, text,
+      expected_head: pv.head.record_id, expected_bundle_sha256: pv.bundle_sha256, approval_text: approval }, session)
+    setBusy(false)
+    if (!r.ok || !r.data.success) { setMsg(errText(r.data)); if (r.data?.errors) setPv({ ...pv, blockers: r.data.errors }); return }
+    onDone(`Đã tạo R${r.data.result.revision} (SHA-256 ${r.data.result.sha256.slice(0, 12)}…), đã đọc lại khớp. Bản này CHƯA xuất bản: vào mục 2 để xuất bản khi sẵn sàng.`)
+  }
+  const changed = pv?.entries?.filter(e => e.disposition === 'CHANGED') || []
+  return <div style={{ marginTop: 8 }}>
+    <JsonInput value={text} onChange={v => { setText(v); setPv(null) }} placeholder="Dán Full JSON bản ứng viên (đúng file có SHA-256 ghi trong operation) hoặc chọn file" />
+    <div className="file-row">
+      <button className="button secondary" disabled={!text.trim() || busy} onClick={preview}>Xem trước tích hợp</button>
+    </div>
+    {pv && <div className="message" style={{ display: 'grid', gap: 6 }}>
+      <span>Head hiện tại R{pv.head.revision}{pv.base.revision !== pv.head.revision ? ` (operation lập trên R${pv.base.revision})` : ''} → bản mới R{pv.revision}</span>
+      {pv.entries?.length > 0 && <span>{changed.length} khối đổi: {changed.map(e => `${e.path} (rev ${e.block_revision}${e.change_class === 'SOURCE_REMAP' ? ', đổi nguồn' : ''})`).join(', ')}; {pv.entries.length - changed.length} khối {DISP_VI.INHERITED}.</span>}
+      {pv.warnings?.map((w, i) => <span key={i} className="muted">Lưu ý: {w}</span>)}
+      <Errors list={pv.blockers} />
+      {pv.bundle_sha256 && <span>Bundle SHA-256 <code>{pv.bundle_sha256}</code></span>}
+    </div>}
+    {pv && !pv.blockers?.length && pv.bundle_sha256 && <div className="file-row">
+      <input type="text" placeholder="Nội dung phê duyệt (ít nhất 8 ký tự)" value={approval} onChange={e => setApproval(e.target.value)} style={{ minWidth: 0, flex: "1 1 240px" }} />
+      <button className="button primary" disabled={busy || approval.trim().length < 8} onClick={approve}>Duyệt bundle này và tạo R{pv.revision}</button>
+    </div>}
+    {msg && <div className="message">{msg}</div>}
+  </div>
+}
+
 export default function ResearchOpsPanel({ session, callFn, refreshKey }) {
   const [state, setState] = useState(null)
   const [records, setRecords] = useState([])
@@ -96,7 +143,7 @@ export default function ResearchOpsPanel({ session, callFn, refreshKey }) {
 
   return <section className="panel">
     <div className="section-head"><h2>3. Khối, chuyên đề & tác vụ</h2><button className="button subtle" onClick={load}>Tải lại</button></div>
-    <p className="muted">Manifest kê 27 khối của mỗi bản, dựng từ bytes gốc. Chuyên đề được duyệt đúng SHA-256 rồi xuất bản riêng; không làm đổi bản hiện hành, điểm hay quyết định. Tác vụ chỉ được lưu làm hồ sơ; tích hợp thành bản mới là bước sau.</p>
+    <p className="muted">Manifest kê 27 khối của mỗi bản, dựng từ bytes gốc. Chuyên đề được duyệt đúng SHA-256 rồi xuất bản riêng; không làm đổi bản hiện hành, điểm hay quyết định. Tác vụ có bản ứng viên (CANDIDATE_SNAPSHOT) được tích hợp thành bản mới sau khi xem trước và duyệt đúng bundle SHA-256; bản mới chưa được xuất bản cho tới khi anh/chị xuất bản ở mục 2.</p>
     {error && <div className="error">{error}</div>}
     {msg && <div className="message">{msg}</div>}
 
@@ -150,10 +197,16 @@ export default function ResearchOpsPanel({ session, callFn, refreshKey }) {
 
     <h3>Tác vụ nghiên cứu</h3>
     <ImportBox kind="operation" session={session} callFn={callFn} onDone={load} />
-    {(state?.operations || []).map(o => <div className="summary-cell" key={o.operation_id} style={{ margin: '8px 0' }}>
-      <strong>{o.operation_type} · {o.outcome}</strong>
-      <span>dữ liệu đến {o.cutoff} · nhập {new Date(o.created_at).toLocaleString('vi-VN')}</span>
-      <code>{o.sha256}</code>
-    </div>)}
+    {(state?.operations || []).map(o => {
+      const integ = state?.integrations?.find(g => g.operation_id === o.operation_id)
+      const made = integ && records.find(r => r.record_id === integ.record_id)
+      return <div className="summary-cell" key={o.operation_id} style={{ margin: '8px 0' }}>
+        <strong>{o.operation_type} · {o.outcome}</strong>
+        <span>dữ liệu đến {o.cutoff} · nhập {new Date(o.created_at).toLocaleString('vi-VN')}
+          {integ ? ` · đã tích hợp thành ${made ? `R${made.revision}` : integ.record_id} (${new Date(integ.created_at).toLocaleString('vi-VN')})` : ''}</span>
+        <code>{o.sha256}</code>
+        {o.outcome === 'CANDIDATE_SNAPSHOT' && !integ && <IntegrationBox op={o} session={session} callFn={callFn} onDone={m => { setError(''); setMsg(m); load() }} />}
+      </div>
+    })}
   </section>
 }
