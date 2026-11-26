@@ -139,11 +139,20 @@ function SyncPanel({ session, onSynced }) {
   </section>
 }
 
+const ROLE_VI = { current: 'Hiện hành', historical: 'Bản lịch sử', withdrawn: 'Đã thu hồi' }
+const ERR_VI = {
+  current_changed: 'Bản hiện hành vừa bị thay đổi ở nơi khác. Đã tải lại danh sách, hãy kiểm tra rồi thử lại.',
+  reason_required: 'Cần nhập lý do (đưa bản cũ trở lại hoặc khôi phục bản đã thu hồi, hoặc thu hồi).',
+  record_not_verified: 'Bản này chưa VERIFIED.'
+}
+
 function RecordsPanel({ session, refreshKey }) {
   const [rows, setRows] = useState([])
   const [pubs, setPubs] = useState([])
+  const [roles, setRoles] = useState({})
   const [verified, setVerified] = useState(new Set())
   const [vis, setVis] = useState({})
+  const [reason, setReason] = useState({})
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
   const load = useCallback(async () => {
@@ -151,39 +160,55 @@ function RecordsPanel({ session, refreshKey }) {
     const r = await callFn('lib-publish', { action: 'list' }, session)
     if (!r.ok) { setError(r.data.error || `Lỗi ${r.status}`); return }
     setRows(r.data.records); setPubs(r.data.publications); setVerified(new Set(r.data.verified))
+    setRoles(Object.fromEntries((r.data.record_publications || []).map(x => [x.record_id, x])))
   }, [session])
   useEffect(() => { load() }, [load, refreshKey])
 
-  async function act(body) {
+  async function act(body, done) {
     setMsg(''); setError('')
     const r = await callFn('lib-publish', body, session)
-    if (!r.ok) setError(r.data.error || `Lỗi ${r.status}`)
-    else { setMsg(body.action === 'publish' ? `Đã xuất bản (${r.data.result.visibility}).` : 'Đã gỡ xuất bản.'); load() }
+    if (!r.ok) { const e = r.data.error || `Lỗi ${r.status}`; setError(ERR_VI[e] || e); if (e === 'current_changed') load(); return }
+    setMsg(done(r.data.result)); load()
   }
 
-  const pubByRecord = Object.fromEntries(pubs.map(p => [p.record_id, p]))
+  const lineageOf = row => row.record_type === 'research' ? `research:${row.ticker}:${row.exchange}` : null
+  const currentOf = key => pubs.find(p => p.lineage_key === key)?.record_id ?? null
+  const revOf = id => rows.find(r => r.record_id === id)?.revision
   return <section className="panel">
     <div className="section-head"><h2>2. Thư viện & xuất bản</h2><button className="button subtle" onClick={load}>Tải lại</button></div>
-    <p className="muted">Chỉ bản đã VERIFIED mới xuất bản được. Mỗi mã chỉ có một bản đang công bố; xuất bản revision mới sẽ thay bản cũ.</p>
+    <p className="muted">Chỉ bản đã VERIFIED mới xuất bản được. Mỗi mã có một bản hiện hành; xuất bản bản mới thì bản cũ chuyển thành bản lịch sử (vẫn đọc được). Đưa bản cũ trở lại, khôi phục hoặc thu hồi đều cần lý do và được ghi nhật ký.</p>
     {error && <div className="error">{error}</div>}
     {msg && <div className="message">{msg}</div>}
     {!rows.length && <p className="muted">Chưa có bản ghi nào.</p>}
     {rows.map(row => {
-      const pub = pubByRecord[row.record_id]
+      const role = roles[row.record_id]
+      const key = lineageOf(row) || role?.lineage_key
+      const cur = key ? currentOf(key) : null
+      const isCurrent = cur === row.record_id
+      const needsReason = role?.role === 'withdrawn' || (cur && !isCurrent && revOf(cur) > row.revision)
+      const why = reason[row.record_id] || ''
       return <div className="summary-cell" key={row.record_id} style={{ margin: '10px 0' }}>
-        <strong>{row.ticker ? `${row.ticker} (${row.exchange})` : `Screening · ${row.universe}`} · R{row.revision}</strong>
-        <span>as_of {row.as_of} · {fmt(row.decision_status)} · {fmt(row.risk_gate)} · {verified.has(row.record_id) ? 'VERIFIED' : 'chưa verified'}</span>
+        <strong>{row.ticker ? `${row.ticker} (${row.exchange})` : `Screening · ${row.universe}`} · R{row.revision}{role ? ` · ${ROLE_VI[role.role]} (${role.visibility})` : ' · chưa xuất bản'}</strong>
+        <span>as_of {row.as_of} · {fmt(row.decision_status)} · {fmt(row.risk_gate)} · {verified.has(row.record_id) ? 'VERIFIED' : 'chưa verified'}
+          {role?.superseded_at ? ` · thay thế ${new Date(role.superseded_at).toLocaleString('vi-VN')}` : ''}
+          {role?.withdrawn_at ? ` · thu hồi ${new Date(role.withdrawn_at).toLocaleString('vi-VN')}: ${role.withdraw_reason}` : ''}</span>
         <code>{row.sha256}</code>
         <div className="file-row">
-          {pub
-            ? <><span className="muted">Đang công bố ({pub.visibility}) từ {new Date(pub.published_at).toLocaleString('vi-VN')}</span>
-                <button className="button subtle" onClick={() => act({ action: 'unpublish', lineage_key: pub.lineage_key })}>Gỡ xuất bản</button></>
-            : <>
-                <select value={vis[row.record_id] || 'public'} onChange={e => setVis({ ...vis, [row.record_id]: e.target.value })}>
-                  <option value="public">Công khai</option><option value="members">Chỉ người đăng nhập</option>
-                </select>
-                <button className="button secondary" disabled={!verified.has(row.record_id)} onClick={() => act({ action: 'publish', record_id: row.record_id, visibility: vis[row.record_id] || 'public' })}>Xuất bản</button>
-              </>}
+          {!isCurrent && <>
+            <select value={vis[row.record_id] || role?.visibility || 'public'} onChange={e => setVis({ ...vis, [row.record_id]: e.target.value })}>
+              <option value="public">Công khai</option><option value="members">Chỉ người đăng nhập</option>
+            </select>
+            <button className="button secondary" disabled={!verified.has(row.record_id) || (needsReason && !why.trim())}
+              onClick={() => act({ action: 'publish', record_id: row.record_id, visibility: vis[row.record_id] || role?.visibility || 'public', expected_current_record_id: cur, reason: why.trim() || undefined },
+                res => res.action === 'rolled_back' ? `Đã đưa R${row.revision} trở lại làm bản hiện hành.` : res.action === 'restored' ? `Đã khôi phục R${row.revision}.` : `Đã xuất bản R${row.revision} (${res.visibility})${cur ? `; R${revOf(cur)} chuyển thành bản lịch sử` : ''}.`)}>
+              {role?.role === 'withdrawn' ? 'Khôi phục' : needsReason ? `Đưa R${row.revision} trở lại` : 'Xuất bản làm bản hiện hành'}
+            </button>
+          </>}
+          {isCurrent && <span className="muted">Đang là bản hiện hành ({role?.visibility || pubs.find(p => p.record_id === row.record_id)?.visibility}).</span>}
+          {role && role.role !== 'withdrawn' && <button className="button subtle" disabled={!why.trim()}
+            onClick={() => act({ action: 'withdraw', record_id: row.record_id, reason: why.trim() }, () => `Đã thu hồi R${row.revision}.${isCurrent ? ' Mã này hiện không có bản hiện hành.' : ''}`)}>Thu hồi</button>}
+          {(role || needsReason) && <input type="text" placeholder="Lý do (bắt buộc khi thu hồi / đưa bản cũ trở lại)" value={why}
+            onChange={e => setReason({ ...reason, [row.record_id]: e.target.value })} style={{ minWidth: 260 }} />}
         </div>
       </div>
     })}
