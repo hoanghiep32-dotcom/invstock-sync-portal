@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invstock.local/contracts/0.1.0/snapshot_manifest.schema.json",
+  "title": "InvStock Snapshot Manifest (DRAFT 0.1.0, chưa phê duyệt)",
+  "description": "Sidecar bất biến kê block/cấu phần của một Full JSON (doc 13 §9). Không nhúng vào schema 02; manifest hash tính trên bytes sidecar và lưu ngoài file.",
+  "type": "object",
+  "properties": {
+    "contract_name": { "const": "invstock.snapshot_manifest" },
+    "contract_version": { "$ref": "defs.schema.json#/$defs/contract_version" },
+    "manifest_id": { "$ref": "defs.schema.json#/$defs/uuid" },
+    "profile_id": { "$ref": "defs.schema.json#/$defs/profile_id" },
+    "identity": { "$ref": "defs.schema.json#/$defs/identity" },
+    "record_id": { "$ref": "defs.schema.json#/$defs/uuid" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "snapshot_sha256": { "$ref": "defs.schema.json#/$defs/sha256", "description": "SHA-256 trên bytes gốc của Full JSON (không canonical hoá)." },
+    "parent_record_id": { "anyOf": [{ "$ref": "defs.schema.json#/$defs/uuid" }, { "type": "null" }] },
+    "parent_manifest_id": { "anyOf": [{ "$ref": "defs.schema.json#/$defs/uuid" }, { "type": "null" }] },
+    "hash_algorithm": { "$ref": "defs.schema.json#/$defs/hash_algorithm" },
+    "canonicalization_version": { "$ref": "defs.schema.json#/$defs/canonicalization_version" },
+    "block_hash_input": {
+      "const": "invstock-block-hash/v1",
+      "description": "content_hash = sha256(JCS({path, content, sources})) với sources = các source descriptor được tham chiếu qua source_ids trong content, sắp theo id. normalized_hash giống vậy nhưng thay mỗi source_id bằng hash descriptor (bỏ id) để nhận diện remap thuần."
+    },
+    "entries": {
+      "type": "array", "minItems": 27, "maxItems": 27,
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "$ref": "defs.schema.json#/$defs/json_pointer" },
+          "kind": { "enum": ["MODULE", "COMPONENT"] },
+          "key": { "type": "string" },
+          "version_id": { "$ref": "defs.schema.json#/$defs/uuid", "description": "block_version_id; INHERITED dùng lại ID của parent." },
+          "block_revision": { "type": "integer", "minimum": 1 },
+          "content_hash": { "$ref": "defs.schema.json#/$defs/sha256" },
+          "normalized_hash": { "$ref": "defs.schema.json#/$defs/sha256" },
+          "disposition": { "enum": ["INITIAL", "INHERITED", "CHANGED"] },
+          "change_class": { "enum": ["NONE", "CONTENT", "SOURCE_REMAP"], "description": "SOURCE_REMAP: chỉ đổi source_id, nội dung + descriptor giống parent (thay đổi kỹ thuật, không phải nghiên cứu mới)." },
+          "source_ids": { "$ref": "defs.schema.json#/$defs/source_ids" },
+          "operation_ids": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/uuid" } },
+          "note_ids": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/uuid" } }
+        },
+        "required": ["path", "kind", "key", "version_id", "block_revision", "content_hash", "normalized_hash",
+                     "disposition", "change_class", "source_ids", "operation_ids", "note_ids"],
+        "additionalProperties": false,
+        "allOf": [
+          { "if": { "properties": { "kind": { "const": "MODULE" } } },
+            "then": { "properties": { "key": { "$ref": "defs.schema.json#/$defs/module_key" } } },
+            "else": { "properties": { "key": { "$ref": "defs.schema.json#/$defs/component_key" } } } },
+          { "if": { "properties": { "disposition": { "const": "INITIAL" } } },
+            "then": { "properties": { "block_revision": { "const": 1 }, "change_class": { "const": "NONE" } } } },
+          { "if": { "properties": { "disposition": { "const": "INHERITED" } } },
+            "then": { "properties": { "change_class": { "const": "NONE" } } } },
+          { "if": { "properties": { "disposition": { "const": "CHANGED" } } },
+            "then": { "properties": { "change_class": { "enum": ["CONTENT", "SOURCE_REMAP"] } } } }
+        ]
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["BUILDER", "LEGACY_BACKFILL"] },
+        "legacy_provenance_unknown": { "type": "boolean" },
+        "generated_at": { "$ref": "defs.schema.json#/$defs/datetime" },
+        "generator": { "$ref": "defs.schema.json#/$defs/text" },
+        "notes": { "type": "string" }
+      },
+      "required": ["kind", "legacy_provenance_unknown", "generated_at", "generator", "notes"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["contract_name", "contract_version", "manifest_id", "profile_id", "identity", "record_id", "revision",
+               "snapshot_sha256", "parent_record_id", "parent_manifest_id", "hash_algorithm", "canonicalization_version",
+               "block_hash_input", "entries", "provenance"],
+  "additionalProperties": false,
+  "allOf": [
+    { "if": { "properties": { "parent_record_id": { "type": "null" } } },
+      "then": { "properties": { "parent_manifest_id": { "type": "null" } } } }
+  ]
+}

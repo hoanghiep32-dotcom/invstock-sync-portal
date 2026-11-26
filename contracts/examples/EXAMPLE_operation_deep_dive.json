@@ -1,0 +1,82 @@
+{
+  "contract_name": "invstock.research_operation",
+  "contract_version": "0.1.0",
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_type": "DEEP_DIVE",
+  "profile_id": "4aaab883-425f-44af-8bf6-7abf0a46918a",
+  "identity": {
+    "ticker": "FPT",
+    "exchange": "HOSE"
+  },
+  "base": {
+    "record_id": "330d2606-645a-4cac-8065-617b21746617",
+    "revision": 2,
+    "sha256": "7820631c30d26c28271aa8a3a7878624afcd328845ec6d080ab1d4aaa8bdcc84",
+    "manifest_id": "7cf5d8d7-dc07-5332-9e10-c34f9ec75f8f",
+    "manifest_sha256": "ce93a7b3b8d23b63e1efcdf4e651decf11223c81b666a888bb481401c4bfc0bd"
+  },
+  "as_of": "2026-11-26",
+  "cutoff": "2026-11-25",
+  "scope": "VÍ DỤ – Deep Dive sở hữu, chỉ APPEND note",
+  "research_question": "Minh hoạ operation APPEND không đổi snapshot.",
+  "read_paths": [
+    "/modules/ownership_governance",
+    "/identity"
+  ],
+  "write_paths": [],
+  "expected_input_hashes": [
+    {
+      "path": "/modules/ownership_governance",
+      "content_hash": "fe194acc62edafa45d847a008208c59e0aeafa9d1edfe5191abf723041c5ecde"
+    },
+    {
+      "path": "/identity",
+      "content_hash": "273faa925b058683cba67ca5812558f226e970a98365db4bfe3dba30ac7ea938"
+    }
+  ],
+  "changes": [
+    {
+      "path": "/modules/ownership_governance",
+      "action": "APPEND",
+      "expected_old_hash": "fe194acc62edafa45d847a008208c59e0aeafa9d1edfe5191abf723041c5ecde",
+      "note_ref": "22222222-2222-4222-8222-222222222222",
+      "reason": "Gắn note tham khảo",
+      "source_refs": [
+        "X1"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "X1",
+      "title": "VÍ DỤ – nguồn minh hoạ, không phải dữ liệu thật",
+      "locator": "https://example.invalid/fpt-note-source",
+      "published_on": null,
+      "accessed_on": "2026-11-26",
+      "tier": 3
+    }
+  ],
+  "note_ids": [
+    "22222222-2222-4222-8222-222222222222"
+  ],
+  "evidence": [],
+  "gaps": [],
+  "impact_review": [
+    {
+      "path": "/modules/ownership_governance",
+      "result": "NO_CHANGE",
+      "reason": "Ví dụ: note chỉ bổ sung",
+      "reviewer": null
+    }
+  ],
+  "outcome": "NOTE_ONLY",
+  "output_refs": {
+    "candidate_record_id": null,
+    "candidate_sha256": null,
+    "note_version_ids": [
+      "22222222-2222-4222-8222-222222222222"
+    ],
+    "diff_ref": null
+  },
+  "created_at": "2026-11-26T00:00:00Z"
+}

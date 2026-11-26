@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invstock.local/contracts/0.1.0/research_operation.schema.json",
+  "title": "InvStock Research Operation (DRAFT 0.1.0, chưa phê duyệt)",
+  "description": "Tác vụ nghiên cứu có phạm vi và bản cơ sở (doc 13 §4). Patch là đề xuất, không phải Full Research import. Approval/integration/publication là metadata audit ngoài file.",
+  "type": "object",
+  "properties": {
+    "contract_name": { "const": "invstock.research_operation" },
+    "contract_version": { "$ref": "defs.schema.json#/$defs/contract_version" },
+    "operation_id": { "$ref": "defs.schema.json#/$defs/uuid" },
+    "operation_type": { "enum": ["FULL_RESEARCH", "UPDATE", "PARTIAL_UPDATE", "DEEP_DIVE", "REVALUATION", "RE_SCORE"] },
+    "profile_id": { "$ref": "defs.schema.json#/$defs/profile_id" },
+    "identity": { "$ref": "defs.schema.json#/$defs/identity" },
+    "base": {
+      "description": "null chỉ khi FULL_RESEARCH lần đầu chưa có cha.",
+      "anyOf": [{ "$ref": "defs.schema.json#/$defs/base_snapshot" }, { "type": "null" }]
+    },
+    "as_of": { "$ref": "defs.schema.json#/$defs/date" },
+    "cutoff": { "$ref": "defs.schema.json#/$defs/date" },
+    "scope": { "$ref": "defs.schema.json#/$defs/text" },
+    "research_question": { "$ref": "defs.schema.json#/$defs/text" },
+    "read_paths": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/json_pointer" }, "uniqueItems": true },
+    "write_paths": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/json_pointer" }, "uniqueItems": true },
+    "expected_input_hashes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "$ref": "defs.schema.json#/$defs/json_pointer" },
+          "content_hash": { "$ref": "defs.schema.json#/$defs/sha256" }
+        },
+        "required": ["path", "content_hash"], "additionalProperties": false
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "$ref": "defs.schema.json#/$defs/json_pointer" },
+          "action": { "enum": ["APPEND", "ANNOTATE", "REPLACE", "RECALCULATE"] },
+          "expected_old_hash": { "anyOf": [{ "$ref": "defs.schema.json#/$defs/sha256" }, { "type": "null" }] },
+          "candidate_value": { "description": "Giá trị mới tại path (REPLACE/RECALCULATE). Array được thay nguyên mảng trong v0.1; null không phải lệnh xóa." },
+          "note_ref": { "anyOf": [{ "$ref": "defs.schema.json#/$defs/uuid" }, { "type": "null" }], "description": "note_version_id (APPEND)." },
+          "annotation": { "type": ["string", "null"], "description": "Nội dung cảnh báo/ghi chú (ANNOTATE)." },
+          "formula_ref": { "type": ["string", "null"], "description": "Tên + phiên bản công thức/mô hình (RECALCULATE)." },
+          "reason": { "$ref": "defs.schema.json#/$defs/text" },
+          "source_refs": { "$ref": "defs.schema.json#/$defs/source_ids" }
+        },
+        "required": ["path", "action", "expected_old_hash", "reason", "source_refs"],
+        "additionalProperties": false,
+        "allOf": [
+          { "if": { "properties": { "action": { "const": "REPLACE" } } }, "then": { "required": ["candidate_value"] } },
+          { "if": { "properties": { "action": { "const": "RECALCULATE" } } },
+            "then": { "required": ["candidate_value", "formula_ref"], "properties": { "formula_ref": { "$ref": "defs.schema.json#/$defs/text" } } } },
+          { "if": { "properties": { "action": { "const": "APPEND" } } },
+            "then": { "required": ["note_ref"], "properties": { "note_ref": { "$ref": "defs.schema.json#/$defs/uuid" } }, "not": { "required": ["candidate_value"] } } },
+          { "if": { "properties": { "action": { "const": "ANNOTATE" } } },
+            "then": { "required": ["annotation"], "properties": { "annotation": { "$ref": "defs.schema.json#/$defs/text" } }, "not": { "required": ["candidate_value"] } } }
+        ]
+      }
+    },
+    "sources": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/source" } },
+    "note_ids": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/uuid" }, "uniqueItems": true },
+    "evidence": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/evidence_item" } },
+    "gaps": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/gap" } },
+    "impact_review": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/impact_item" } },
+    "outcome": { "enum": ["NO_CHANGE", "NOTE_ONLY", "CANDIDATE_SNAPSHOT"] },
+    "output_refs": {
+      "type": "object",
+      "properties": {
+        "candidate_record_id": { "anyOf": [{ "$ref": "defs.schema.json#/$defs/uuid" }, { "type": "null" }] },
+        "candidate_sha256": { "anyOf": [{ "$ref": "defs.schema.json#/$defs/sha256" }, { "type": "null" }] },
+        "note_version_ids": { "type": "array", "items": { "$ref": "defs.schema.json#/$defs/uuid" } },
+        "diff_ref": { "type": ["string", "null"] }
+      },
+      "required": ["candidate_record_id", "candidate_sha256", "note_version_ids", "diff_ref"],
+      "additionalProperties": false
+    },
+    "created_at": { "$ref": "defs.schema.json#/$defs/datetime" }
+  },
+  "required": ["contract_name", "contract_version", "operation_id", "operation_type", "profile_id", "identity", "base",
+               "as_of", "cutoff", "scope", "research_question", "read_paths", "write_paths", "expected_input_hashes",
+               "changes", "sources", "note_ids", "evidence", "gaps", "impact_review", "outcome", "output_refs", "created_at"],
+  "additionalProperties": false,
+  "allOf": [
+    { "if": { "properties": { "operation_type": { "not": { "const": "FULL_RESEARCH" } } } },
+      "then": { "properties": { "base": { "$ref": "defs.schema.json#/$defs/base_snapshot" } } } },
+    { "if": { "properties": { "outcome": { "const": "CANDIDATE_SNAPSHOT" } } },
+      "then": { "properties": { "output_refs": { "properties": {
+        "candidate_record_id": { "$ref": "defs.schema.json#/$defs/uuid" },
+        "candidate_sha256": { "$ref": "defs.schema.json#/$defs/sha256" } } } } } }
+  ]
+}

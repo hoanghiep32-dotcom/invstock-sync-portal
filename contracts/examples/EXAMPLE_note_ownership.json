@@ -1,0 +1,89 @@
+{
+  "contract_name": "invstock.research_note",
+  "contract_version": "0.1.0",
+  "note_id": "11111111-1111-4111-8111-111111111111",
+  "note_version_id": "22222222-2222-4222-8222-222222222222",
+  "note_version": 1,
+  "parent_note_version_id": null,
+  "profile_id": "4aaab883-425f-44af-8bf6-7abf0a46918a",
+  "identity": {
+    "ticker": "FPT",
+    "exchange": "HOSE"
+  },
+  "topic": "OWNERSHIP",
+  "title": "VÍ DỤ – Deep Dive cơ cấu sở hữu (mẫu cấu trúc, không phải nghiên cứu thật)",
+  "base": {
+    "record_id": "330d2606-645a-4cac-8065-617b21746617",
+    "revision": 2,
+    "sha256": "7820631c30d26c28271aa8a3a7878624afcd328845ec6d080ab1d4aaa8bdcc84",
+    "manifest_id": "7cf5d8d7-dc07-5332-9e10-c34f9ec75f8f",
+    "manifest_sha256": "ce93a7b3b8d23b63e1efcdf4e651decf11223c81b666a888bb481401c4bfc0bd"
+  },
+  "base_absent_reason": null,
+  "module_links": [
+    {
+      "module_key": "ownership_governance",
+      "role": "PRIMARY"
+    },
+    {
+      "module_key": "scorecard_risk",
+      "role": "SECONDARY"
+    }
+  ],
+  "scope": "Minh hoạ cấu trúc note; nội dung là placeholder.",
+  "research_question": "Cấu trúc note có đủ trường theo doc 13 §5 không?",
+  "as_of": "2026-11-26",
+  "cutoff": "2026-11-25",
+  "body": {
+    "format": "markdown",
+    "text": "# VÍ DỤ\n\nĐây là nội dung giữ chỗ để kiểm thử validator."
+  },
+  "sources": [
+    {
+      "id": "X1",
+      "title": "VÍ DỤ – nguồn minh hoạ, không phải dữ liệu thật",
+      "locator": "https://example.invalid/fpt-note-source",
+      "published_on": null,
+      "accessed_on": "2026-11-26",
+      "tier": 3
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "FACT",
+      "statement": "Placeholder fact",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "status": "UNVERIFIED",
+      "source_ids": [
+        "X1"
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "description": "Placeholder gap",
+      "materiality": "MINOR",
+      "impact": "Không ảnh hưởng"
+    }
+  ],
+  "risks": [
+    "Placeholder risk"
+  ],
+  "impact_review": [
+    {
+      "path": "/modules/ownership_governance",
+      "result": "NO_CHANGE",
+      "reason": "Ví dụ",
+      "reviewer": null
+    }
+  ],
+  "outcome": "SUPPLEMENT_ONLY",
+  "quality": {
+    "scope_level": "SCOPED_PARTIAL",
+    "notes": "Ví dụ"
+  },
+  "visibility": "members",
+  "created_at": "2026-11-26T00:00:00Z"
+}
