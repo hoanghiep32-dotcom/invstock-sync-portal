@@ -701,11 +701,11 @@ function BackToTop() {
   return show ? <button className="rl-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Lên đầu trang">↑</button> : null
 }
 
-function ReportSection({ id, title, kicker, children }) {
+function ReportSection({ id, title, kicker, blocks, children }) {
   const prefix = useContext(IdPrefix)
   return <section className="rl-section" id={prefix + id}>
     {kicker && <div className="rl-kicker">{kicker}</div>}
-    <h2>{title}</h2>
+    <h2>{title}{blocks && <BlockTag paths={blocks} />}</h2>
     {children}
   </section>
 }
@@ -1023,7 +1023,8 @@ function Chapter({ modules, keys }) {
   const present = keys.filter(k => modules?.[k])
   if (!present.length) return null
   return present.map(k => <div className="rl-sub" id={`${prefix}module-${k}`} key={k}>
-    {present.length > 1 && <h3 className="rl-sub-title">{MODULES[k] || titleCase(k)}</h3>}
+    {present.length > 1 ? <h3 className="rl-sub-title">{MODULES[k] || titleCase(k)}<BlockTag paths={[`/modules/${k}`]} /></h3>
+      : <BlockTag paths={[`/modules/${k}`]} standalone />}
     <ModuleBody m={modules[k]} />
   </div>)
 }
@@ -1113,20 +1114,20 @@ function ResearchArticle({ data, criteria }) {
   const mods = p.modules || {}
   const otherKeys = Object.keys(mods).filter(k => !PLACED.has(k))
   return <GlossaryScope sector={data.sector}><article className="rl-article">
-    <ReportSection id="tom-tat" title="Tóm tắt">
+    <ReportSection id="tom-tat" title="Tóm tắt" blocks={['/modules/executive_summary']}>
       {mods.executive_summary ? <div className="rl-summary">
         <ModuleBody m={mods.executive_summary} />
       </div> : <p className="rl-muted">Không có tóm tắt.</p>}
     </ReportSection>
 
-    {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư">
+    {p.decision && <ReportSection id="luan-diem" title="Luận điểm đầu tư" blocks={['/decision', '/modules/decision_monitoring']}>
       {mods.decision_monitoring?.analysis && <Prose text={mods.decision_monitoring.analysis} />}
       <ThesisBlock decision={p.decision} />
       {mods.decision_monitoring?.metrics?.length > 0 && <MetricsView metrics={mods.decision_monitoring.metrics} />}
       <Gaps items={mods.decision_monitoring?.gaps} />
     </ReportSection>}
 
-    {(p.valuation || mods.valuation_engine) && <ReportSection id="dinh-gia" title="Định giá" kicker={`Đơn vị: ${p.valuation?.currency || 'VND'}/cổ phiếu`}>
+    {(p.valuation || mods.valuation_engine) && <ReportSection id="dinh-gia" title="Định giá" blocks={['/valuation', '/modules/valuation_engine']} kicker={`Đơn vị: ${p.valuation?.currency || 'VND'}/cổ phiếu`}>
       <ValuationBlock v={p.valuation} />
       {mods.valuation_engine && <div className="rl-sub">
         <h3 className="rl-sub-title">Mô hình định giá</h3>
@@ -1140,21 +1141,21 @@ function ResearchArticle({ data, criteria }) {
 
     {otherKeys.length > 0 && <ReportSection id="khac" title="Phân tích khác"><Chapter modules={mods} keys={otherKeys} /></ReportSection>}
 
-    {p.scorecard && <ReportSection id="scorecard" title="Scorecard 15 tiêu chí"><ScorecardBlock scorecard={p.scorecard} criteria={criteria} /></ReportSection>}
+    {p.scorecard && <ReportSection id="scorecard" title="Scorecard 15 tiêu chí" blocks={['/scorecard']}><ScorecardBlock scorecard={p.scorecard} criteria={criteria} /></ReportSection>}
 
-    {p.risk && <ReportSection id="rui-ro" title="Rủi ro">
+    {p.risk && <ReportSection id="rui-ro" title="Rủi ro" blocks={['/risk', '/modules/scorecard_risk']}>
       {mods.scorecard_risk?.analysis && <Prose text={mods.scorecard_risk.analysis} />}
       <RiskBlock risk={p.risk} />
       {mods.scorecard_risk?.metrics?.length > 0 && <MetricsView metrics={mods.scorecard_risk.metrics} />}
     </ReportSection>}
 
-    {(p.catalysts?.length > 0 || p.monitoring?.length > 0 || mods.catalysts_expectations) && <ReportSection id="catalyst" title="Catalyst và theo dõi">
+    {(p.catalysts?.length > 0 || p.monitoring?.length > 0 || mods.catalysts_expectations) && <ReportSection id="catalyst" title="Catalyst và theo dõi" blocks={['/catalysts', '/monitoring', '/modules/catalysts_expectations']}>
       {mods.catalysts_expectations && <ModuleBody m={mods.catalysts_expectations} />}
       {p.catalysts?.length > 0 && <><h3 className="rl-sub-title">Sự kiện sắp tới</h3><CatalystBlock items={p.catalysts} /></>}
       {p.monitoring?.length > 0 && <><h3 className="rl-sub-title">Chỉ tiêu cần theo dõi</h3><MonitoringBlock items={p.monitoring} /></>}
     </ReportSection>}
 
-    {(p.core10 || p.committee) && <ReportSection id="phan-bien" title="Phản biện">
+    {(p.core10 || p.committee) && <ReportSection id="phan-bien" title="Phản biện" blocks={['/core10', '/committee']}>
       {p.core10 && <div className="rl-sub"><h3 className="rl-sub-title">10 câu hỏi cốt lõi</h3><OpinionList items={p.core10} numbered /></div>}
       {p.committee && <div className="rl-sub"><h3 className="rl-sub-title">Hội đồng đầu tư · 6 góc nhìn</h3><OpinionList items={p.committee} labels={COMMITTEE} /></div>}
     </ReportSection>}
@@ -1168,6 +1169,117 @@ function ResearchArticle({ data, criteria }) {
 }
 
 const useSourceMap = data => useMemo(() => Object.fromEntries((data?.payload?.sources || []).map(s => [s.id, s])), [data])
+
+/* ---------- Khối nội dung (tài liệu 13, giai đoạn 2: đọc trực tiếp 14 module và cấu phần top-level) ---------- */
+
+// Danh mục khối theo key của schema 02. Chưa có registry/manifest chính thức: trạng thái "đổi / giữ nguyên"
+// dưới đây là so sánh hiển thị giữa các bản đã xuất bản, không phải content hash hay block version.
+const BLOCKS = [
+  ...Object.keys(MODULES).map(k => ({ path: `/modules/${k}`, title: MODULES[k], kind: 'module' })),
+  { path: '/valuation', title: 'Định giá (số liệu chính thức)', kind: 'component' },
+  { path: '/scorecard', title: 'Scorecard (điểm chính thức)', kind: 'component' },
+  { path: '/risk', title: 'Rủi ro (cổng rủi ro)', kind: 'component' },
+  { path: '/decision', title: 'Quyết định', kind: 'component' },
+  { path: '/core10', title: '10 câu hỏi cốt lõi', kind: 'component' },
+  { path: '/committee', title: 'Hội đồng 6 góc nhìn', kind: 'component' },
+  { path: '/catalysts', title: 'Catalyst', kind: 'component' },
+  { path: '/monitoring', title: 'Chỉ tiêu theo dõi', kind: 'component' },
+  { path: '/sources', title: 'Nguồn', kind: 'component' },
+  { path: '/identity', title: 'Định danh', kind: 'component' }
+]
+const pointer = (obj, path) => path.split('/').slice(1).reduce((o, k) => (o == null ? undefined : o[k]), obj)
+const stable = v => Array.isArray(v) ? `[${v.map(stable).join(',')}]`
+  : v && typeof v === 'object' ? `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
+  : JSON.stringify(v ?? null)
+
+// Với chuỗi các bản đã xuất bản (theo revision), tính cho từng khối: mới / đổi / giữ nguyên so với bản liền trước.
+function blockLineage(versions) {
+  const out = {}
+  BLOCKS.forEach(b => {
+    let prev = null, since = null
+    out[b.path] = versions.map((v, i) => {
+      const cur = pointer(v.payload, b.path)
+      const key = cur === undefined ? null : stable(cur)
+      let state
+      if (key === null) state = 'ABSENT'
+      else if (i === 0 || prev === null) state = 'INITIAL'
+      else state = key === prev ? 'INHERITED' : 'CHANGED'
+      if (state === 'INITIAL' || state === 'CHANGED') since = v.revision
+      prev = key
+      return { revision: v.revision, record_id: v.record_id, state, since: key === null ? null : since }
+    })
+  })
+  return out
+}
+
+// Tải nội dung các bản đã xuất bản (được phép xem) cùng chuỗi, đến revision đang đọc.
+function useVersions(history, upToRevision) {
+  const items = (history?.items || []).filter(i => i.role !== 'withdrawn' && (upToRevision == null || i.revision <= upToRevision))
+  const key = items.map(i => i.record_id).join(',')
+  const [state, setState] = useState({ key: '', versions: [] })
+  useEffect(() => {
+    if (!items.length) return
+    let active = true
+    Promise.all(items.map(i => fetchCached({ action: 'record', id: i.record_id }).catch(() => null)))
+      .then(rs => { if (active) setState({ key, versions: rs.filter(Boolean).sort((a, b) => a.revision - b.revision) }) })
+    return () => { active = false }
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  return state.key === key ? state.versions : []
+}
+
+const BlockContext = createContext(null)
+const BLOCK_STATE = {
+  CHANGED: { vi: 'Cập nhật', tone: 'blue' },
+  INHERITED: { vi: 'Giữ nguyên', tone: 'gray' },
+  INITIAL: { vi: 'Bản đầu', tone: 'gray' }
+}
+
+// Nhãn cạnh tiêu đề mục: khối này đổi ở bản đang đọc hay giữ nguyên từ bản trước.
+function BlockTag({ paths, standalone = false }) {
+  const ctx = useContext(BlockContext)
+  if (!ctx || ctx.count < 2) return null
+  const rows = paths.map(p => ctx.at[p]).filter(r => r && r.state !== 'ABSENT')
+  if (!rows.length) return null
+  const changed = rows.some(r => r.state === 'CHANGED')
+  const since = Math.max(...rows.map(r => r.since || 0))
+  const text = changed ? `Cập nhật ở R${ctx.revision}` : rows.every(r => r.state === 'INITIAL') ? `Từ R${ctx.revision}` : `Giữ nguyên từ R${since}`
+  const tag = <span className={`rl-block-tag ${changed ? 'changed' : ''}`} title={changed ? `Nội dung khác bản R${ctx.prevRevision}` : `Nội dung giống bản R${ctx.prevRevision}`}>{text}</span>
+  return standalone ? <div className="rl-block-tag-line">{tag}</div> : tag
+}
+
+function BlockProvider({ data, history, children }) {
+  const versions = useVersions(history, data?.revision)
+  const value = useMemo(() => {
+    if (!data || versions.length < 2) return null
+    const lin = blockLineage(versions)
+    const idx = versions.findIndex(v => v.record_id === data.record_id)
+    if (idx < 1) return null
+    return { count: versions.length, revision: data.revision, prevRevision: versions[idx - 1].revision,
+      at: Object.fromEntries(Object.entries(lin).map(([p, row]) => [p, row[idx]])) }
+  }, [data, versions])
+  return <BlockContext.Provider value={value}>{children}</BlockContext.Provider>
+}
+
+// Bảng khối × bản: đọc nhanh khối nào đổi ở từng revision.
+function BlockMatrix({ history }) {
+  const versions = useVersions(history, null)
+  if (versions.length < 2) return null
+  const lin = blockLineage(versions)
+  const changedCount = v => BLOCKS.filter(b => lin[b.path][v].state === 'CHANGED').length
+  return <>
+    <h2 className="rl-ptab-h">Khối nội dung theo từng bản</h2>
+    <p className="rl-muted rl-small">So sánh nội dung giữa các bản đã xuất bản để biết khối nào được cập nhật, khối nào giữ nguyên. Đây là đối chiếu hiển thị; manifest và phiên bản khối chính thức sẽ có ở giai đoạn sau.</p>
+    <div className="rl-table-wrap"><table className="rl-table rl-block-matrix">
+      <thead><tr><th scope="col">Khối</th>{versions.map((v, i) => <th key={v.record_id} scope="col">R{v.revision}{i > 0 && <small>{changedCount(i)} khối đổi</small>}</th>)}</tr></thead>
+      <tbody>{BLOCKS.map(b => <tr key={b.path}>
+        <th scope="row">{b.title}<small><code>{b.path}</code></small></th>
+        {lin[b.path].map((c, i) => <td key={i} className={`rl-bm-${c.state.toLowerCase()}`}>
+          {c.state === 'ABSENT' ? <span className="rl-muted">—</span> : c.state === 'CHANGED' ? <b>Cập nhật</b> : c.state === 'INITIAL' ? 'Bản đầu' : <span className="rl-muted">Giữ nguyên</span>}
+        </td>)}
+      </tr>)}</tbody>
+    </table></div>
+  </>
+}
 
 // Hồ sơ cổ phiếu (tài liệu 12): Tổng quan = bản hiện hành; Chuyên đề; Cập nhật; Lịch sử các bản từng xuất bản.
 const PROFILE_TABS = [
@@ -1246,10 +1358,10 @@ function ResearchPage({ ticker, exchange, tab }) {
           {overview && <>
             <RecordStatus data={data} role="current" />
             <KeyFacts data={data} p={p} />
-            <div className="rl-layout">
+            <BlockProvider data={data} history={history.data}><div className="rl-layout">
               <SectionNav sections={sections} active={active} />
               <ResearchArticle data={data} criteria={crit.data?.criteria} />
-            </div>
+            </div></BlockProvider>
           </>}
           {tab === 'chuyen-de' && <TopicsTab ticker={ticker} />}
           {tab === 'cap-nhat' && <UpdatesTab item={item} history={history} />}
@@ -1384,6 +1496,7 @@ function HistoryTab({ item, history, currentId }) {
         </tr>)}</tbody>
     </table></div>}
     {pair.length === 2 && <><h2 className="rl-ptab-h">So sánh R{pair[0].revision} và R{pair[1].revision}</h2><RevisionDiff a={pair[0]} b={pair[1]} /></>}
+    <BlockMatrix history={history.data} />
     {readable.length === 1 && <p className="rl-muted rl-small">Mới có một bản được xuất bản. Khi có bản mới, bản cũ vẫn đọc được tại đây.</p>}
   </section>
 }
@@ -1392,6 +1505,7 @@ function HistoryTab({ item, history, currentId }) {
 function RecordPage({ ticker, exchange, id }) {
   const item = { ticker, exchange }
   const report = useApi({ action: 'record', id }, [id])
+  const history = useApi({ action: 'history', ticker, exchange }, [ticker, exchange])
   const crit = useApi({ action: 'criteria' }, [])
   const [size, setSize] = useReaderSize()
   const data = report.data
@@ -1431,10 +1545,10 @@ function RecordPage({ ticker, exchange, id }) {
             sub={`${data.sector || ''}${data.reporting_period ? ` · Kỳ báo cáo: ${data.reporting_period}` : ''}`} />
           <RecordStatus data={data} role={data.role} />
           <KeyFacts data={data} p={p} />
-          <div className="rl-layout">
+          <BlockProvider data={data} history={history.data}><div className="rl-layout">
             <SectionNav sections={sections} active={active} />
             <ResearchArticle data={data} criteria={crit.data?.criteria} />
-          </div>
+          </div></BlockProvider>
         </>}
       </main>
       <BackToTop />

@@ -558,3 +558,12 @@ a.rl-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow
   .rl-ptabs a{padding:8px 11px 9px;font-size:14px}
   .rl-status-line{font-size:12.5px;gap:4px 12px}
 }
+
+/* Khối nội dung: nhãn cập nhật / giữ nguyên, bảng khối × bản (tài liệu 13) */
+.rl-block-tag{display:inline-block;vertical-align:middle;margin-left:10px;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:0;background:var(--gray-bg);color:var(--gray);line-height:1.7}
+.rl-block-tag.changed{background:var(--blue-bg);color:var(--blue)}
+.rl-block-tag-line{margin:-4px 0 8px}.rl-block-tag-line .rl-block-tag{margin-left:0}
+.rl-block-matrix th small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.rl-block-matrix th small code{font-size:10.5px}
+.rl-block-matrix td{white-space:nowrap}
+.rl-bm-changed{background:color-mix(in srgb,var(--accent-soft) 55%,transparent);color:var(--accent)}
