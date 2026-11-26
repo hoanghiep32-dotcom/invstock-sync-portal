@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       const id = (q.get("id") ?? "").trim().toLowerCase();
       if (!UUID.test(id)) return json({ error: "id_required" }, 400);
       const { data, error } = await db.from("lib_record_publications")
-        .select(`lineage_key,role,visibility,first_published_at,became_current_at,superseded_at,superseded_by,withdrawn_at,record:lib_records(${SUMMARY},payload)`)
+        .select(`lineage_key,role,visibility,first_published_at,became_current_at,superseded_at,superseded_by,withdrawn_at,record:lib_records!lib_record_publications_record_id_fkey(${SUMMARY},payload)`)
         .eq("record_id", id).in("visibility", vis).maybeSingle();
       if (error) throw error;
       if (!data) return json({ error: "published_record_not_found" }, 404, cache);
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       }
       const { data, error } = await db.from("lib_record_publications")
         .select(`record_id,role,visibility,first_published_at,became_current_at,superseded_at,superseded_by,withdrawn_at,` +
-          `record:lib_records(${SUMMARY},change_log:payload->metadata->change_log)`)
+          `record:lib_records!lib_record_publications_record_id_fkey(${SUMMARY},change_log:payload->metadata->change_log)`)
         .eq("lineage_key", lk).in("visibility", vis).order("first_published_at", { ascending: true });
       if (error) throw error;
       // Bản đã thu hồi: chỉ giữ revision và các mốc thời gian, không trả số liệu.
