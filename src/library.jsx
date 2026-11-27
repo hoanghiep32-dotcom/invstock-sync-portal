@@ -465,16 +465,16 @@ function CardChange({ item }) {
   const prev = item.previous
   if (!prev) return null
   const parts = []
-  if (prev.decision_status !== item.decision_status) parts.push(<span key="d">quyết định <Badge map={DECISION} value={prev.decision_status} /> → <Badge map={DECISION} value={item.decision_status} /></span>)
-  if (prev.risk_gate !== item.risk_gate) parts.push(<span key="g">rủi ro <Badge map={GATE} value={prev.risk_gate} /> → <Badge map={GATE} value={item.risk_gate} /></span>)
+  if (prev.decision_status !== item.decision_status) parts.push(<span key="d">kết luận <Badge map={DECISION} value={prev.decision_status} /> → <Badge map={DECISION} value={item.decision_status} /></span>)
+  if (prev.risk_gate !== item.risk_gate) parts.push(<span key="g">mức rủi ro <Badge map={GATE} value={prev.risk_gate} /> → <Badge map={GATE} value={item.risk_gate} /></span>)
   if (isNum(scoreOf(prev)) && isNum(scoreOf(item)) && scoreOf(prev) !== scoreOf(item)) parts.push(<span key="s">điểm <Delta item={item} value={scoreOf} kind="abs" /></span>)
-  return <div className="rl-card-change">So với R{prev.revision}: {parts.length ? parts : <span className="rl-muted">quyết định và điểm giữ nguyên</span>}</div>
+  return <div className="rl-card-change">So với R{prev.revision}: {parts.length ? parts : <span className="rl-muted">kết luận và điểm giữ nguyên</span>}</div>
 }
 
 function ScoreMeter({ value, provisional }) {
   const v = isNum(value) ? Math.max(0, Math.min(100, value)) : null
   return <div className="rl-meter" title={provisional ? 'Điểm tạm: chưa đủ coverage để thành điểm chính thức' : 'Điểm chính thức'}>
-    <div className="rl-meter-top"><span>Điểm</span><b>{score(value)}<small>/100</small>{provisional && v !== null && <em>tạm</em>}</b></div>
+    <div className="rl-meter-top"><span>Điểm chất lượng</span><b>{score(value)}<small>/100</small>{provisional && v !== null && <em>tạm</em>}</b></div>
     <div className="rl-meter-bar"><i style={{ width: `${v ?? 0}%` }} className={provisional ? 'provisional' : ''} /></div>
   </div>
 }
@@ -493,9 +493,9 @@ function ResearchCard({ item }) {
     <ScoreMeter value={item.official_total ?? item.normalized_score} provisional={provisional} />
     <CardChange item={item} />
     <dl className="rl-card-facts">
-      <div><dt>Giá trị hợp lý</dt><dd>{price(item.fair_value)}<Delta item={item} value={d => d.fair_value} /></dd></div>
-      <div><dt>MOS</dt><dd className={isNum(item.mos) && isNum(item.required_mos) && item.mos >= item.required_mos ? 'good' : ''}>{pct(item.mos)}</dd></div>
-      <div><dt>Rủi ro</dt><dd><Badge map={GATE} value={item.risk_gate} code={false} /></dd></div>
+      <div><dt title={KF.value.what}>Giá trị ước tính</dt><dd>{price(item.fair_value)}<Delta item={item} value={d => d.fair_value} /></dd></div>
+      <div><dt title={KF.mos.what}>Biên an toàn</dt><dd className={isNum(item.mos) && isNum(item.required_mos) && item.mos >= item.required_mos ? 'good' : ''}>{pct(item.mos)}</dd></div>
+      <div><dt title={KF.risk.what}>Mức rủi ro</dt><dd><Badge map={GATE} value={item.risk_gate} code={false} /></dd></div>
     </dl>
     <div className="rl-card-foot">
       <span>Dữ liệu đến {dateText(item.cutoff)} · R{item.revision}{item.visibility === 'members' ? ' · Thành viên' : ''} <FreshTag item={item} /></span>
@@ -506,7 +506,7 @@ function ResearchCard({ item }) {
 
 function ResearchTable({ items }) {
   return <div className="rl-table-wrap"><table className="rl-table rl-table-list">
-    <thead><tr><th>Mã</th><th>Công ty</th><th>Quyết định</th><th>Rủi ro</th><th className="num">Điểm</th><th className="num">Giá trị HL</th><th className="num">MOS</th><th>Dữ liệu đến</th><th><span className="rl-sr">Mở tab</span></th></tr></thead>
+    <thead><tr><th>Mã</th><th>Công ty</th><th title={KF.decision.what}>Kết luận</th><th title={KF.risk.what}>Mức rủi ro</th><th className="num" title={KF.score.what}>Điểm</th><th className="num" title={KF.value.what}>Giá trị ước tính</th><th className="num" title={KF.mos.what}>Biên an toàn</th><th>Dữ liệu đến</th><th><span className="rl-sr">Mở tab</span></th></tr></thead>
     <tbody>{items.map(item => <tr key={item.lineage_key} onClick={() => navigate(researchHref(item))}>
       <td><a href={researchHref(item)} className="rl-strong">{item.ticker}</a><small className="rl-muted"> {item.exchange}</small></td>
       <td>{item.company}<div className="rl-muted rl-small">{item.sector}</div></td>
@@ -616,14 +616,14 @@ function Home() {
 
       {f.tab === 'research' && <>
         <div className="rl-filters">
-          {options.decisions.length > 0 && <div className="rl-chips" role="group" aria-label="Lọc theo quyết định">
+          {options.decisions.length > 0 && <div className="rl-chips" role="group" aria-label="Lọc theo kết luận">
             <button className={!f.decision ? 'active' : ''} onClick={() => set({ decision: '' })}>Tất cả</button>
             {options.decisions.map(d => <button key={d} className={f.decision === d ? `active tone-${DECISION[d].tone}` : ''} onClick={() => set({ decision: f.decision === d ? '' : d })}>{DECISION[d].vi}</button>)}
           </div>}
           <div className="rl-filter-row">
             {options.sectors.length > 1 && <label className="rl-select"><span>Ngành</span>
               <select value={f.sector} onChange={e => set({ sector: e.target.value })}><option value="">Tất cả</option>{options.sectors.map(s => <option key={s}>{s}</option>)}</select></label>}
-            {options.gates.length > 0 && <label className="rl-select"><span>Rủi ro</span>
+            {options.gates.length > 0 && <label className="rl-select"><span>Mức rủi ro</span>
               <select value={f.gate} onChange={e => set({ gate: e.target.value })}><option value="">Tất cả</option>{options.gates.map(g => <option key={g} value={g}>{GATE[g].vi}</option>)}</select></label>}
             <label className="rl-select"><span>Sắp xếp</span>
               <select value={f.sort} onChange={e => set({ sort: e.target.value })}>{Object.entries(SORTS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}</select></label>
@@ -766,36 +766,91 @@ function BulletList({ items, tone = '' }) {
 
 /* ---------- Các khối của Full Research ---------- */
 
+// Ô giải thích thuật ngữ: rê chuột (hoặc focus bằng bàn phím) để xem nhanh, bấm để ghim mở; Esc hoặc bấm ra ngoài để đóng.
+function InfoTip({ label, children }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const onDoc = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    const onKey = e => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  return <span className={`rl-info ${open ? 'open' : ''}`} ref={ref}>
+    <button type="button" className="rl-info-btn" aria-expanded={open} aria-label={`Giải thích: ${label}`}
+      onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(!open) }}>?</button>
+    <span className="rl-info-pop" role="tooltip">{children}</span>
+  </span>
+}
+
+// Tên dễ hiểu cho 5 chỉ số đầu bài, kèm giải thích; thuật ngữ gốc của khung phân tích vẫn ghi ở cuối mỗi giải thích.
+const KF = {
+  decision: { label: 'Kết luận', term: 'Quyết định (Decision)',
+    what: 'Hành động mà bài nghiên cứu đề xuất với cổ phiếu này ở thời điểm đánh giá.',
+    how: 'Theo dõi: quan sát, chưa mua thêm. Tích lũy: có thể mua dần khi giá phù hợp. Nắm giữ: giữ nếu đang có. Chốt lời: cân nhắc bán bớt. Thoát / đánh giá lại: luận điểm không còn đúng.' },
+  risk: { label: 'Mức rủi ro', term: 'Cổng rủi ro (Risk Gate)',
+    what: 'Bộ lọc an toàn đứng trước kết luận: dù định giá hấp dẫn, rủi ro chưa qua cổng thì vẫn không nâng kết luận lên mua.',
+    how: 'Đạt: không có rủi ro chặn. Thận trọng: có rủi ro cần theo dõi. Hạn chế: còn điểm trọng yếu chưa xác minh, chưa mua thêm. Bị chặn: rủi ro nghiêm trọng.' },
+  score: { label: 'Điểm chất lượng', term: 'Scorecard 15 tiêu chí',
+    what: 'Điểm tổng hợp từ 15 tiêu chí về kinh doanh, tài chính, quản trị, định giá và thời điểm, thang 0–100.',
+    how: 'Điểm "tạm" khi dữ liệu chưa đủ để chấm chính thức. Độ phủ dữ liệu cho biết bao nhiêu phần trăm tiêu chí có bằng chứng; độ phủ thấp thì điểm kém chắc chắn.' },
+  value: { label: 'Giá trị ước tính', term: 'Giá trị hợp lý (Fair Value)',
+    what: 'Giá trị một cổ phiếu theo mô hình định giá của bài (VND/cổ phiếu), không phải giá mục tiêu ngắn hạn.',
+    how: 'So với giá tham chiếu: giá thấp hơn giá trị ước tính càng nhiều thì càng có dư địa. Xem mục Định giá để biết phương pháp và các kịch bản.' },
+  mos: { label: 'Biên an toàn', term: 'Margin of Safety (MOS)',
+    what: 'Phần giá đang thấp hơn giá trị ước tính, tính bằng 1 − giá ÷ giá trị ước tính.',
+    how: 'Khung phân tích chỉ xem xét mua khi biên an toàn đạt mức tối thiểu (ví dụ 35%), để chừa chỗ cho sai số của mô hình. "Giá mua tối đa" là mức giá để đạt đúng mức tối thiểu đó.' }
+}
+const DECISION_PLAIN = { WATCH: 'Quan sát, chưa mua thêm', ACCUMULATE: 'Có thể mua dần', HOLD: 'Giữ nếu đang có, không mua thêm',
+  'TAKE PROFIT': 'Cân nhắc bán bớt', 'EXIT/RE-EVALUATE': 'Thoát hoặc đánh giá lại' }
+const GATE_PLAIN = { PASS: 'Không có rủi ro chặn quyết định', CAUTION: 'Có rủi ro cần theo dõi', RESTRICTED: 'Chưa mua thêm cho tới khi xác minh xong', BLOCKED: 'Rủi ro nghiêm trọng, không xem xét mua' }
+
+function KfLabel({ k }) {
+  const d = KF[k]
+  return <span className="rl-kf-label">{d.label}<InfoTip label={d.label}>
+    <b>{d.label}</b>{d.what}<span className="rl-info-how">{d.how}</span><small>Thuật ngữ gốc: {d.term}</small>
+  </InfoTip></span>
+}
+
 function KeyFacts({ data, p }) {
   const v = p.valuation || {}
   const sc = p.scorecard || {}
   const provisional = data.official_total == null
-  const mosOk = isNum(v.mos) && isNum(v.required_mos) && v.mos >= v.required_mos
+  const fv = v.fair_value ?? data.fair_value, px = v.price ?? data.price
+  const mos = v.mos ?? data.mos, req = v.required_mos ?? data.required_mos
+  const mosOk = isNum(mos) && isNum(req) && mos >= req
+  const gaps = p.risk?.critical_gaps?.length || 0
+  const thesis = data.thesis_status || p.decision?.thesis_status
   return <div className="rl-keyfacts">
-    <div className="rl-kf rl-kf-decision">
-      <span>Quyết định</span>
+    <div className="rl-kf">
+      <KfLabel k="decision" />
       <Badge map={DECISION} value={data.decision_status} className="lg" />
-      <small>Luận điểm: <Badge map={THESIS} value={data.thesis_status || p.decision?.thesis_status} code={false} /></small>
+      <small>{DECISION_PLAIN[data.decision_status] || '—'}{thesis ? <> · luận điểm <span className={`rl-tone-text tone-${THESIS[thesis]?.tone || 'gray'}`}>{(THESIS[thesis]?.vi || thesis).toLowerCase()}</span></> : null}</small>
     </div>
     <div className="rl-kf">
-      <span>Cổng rủi ro</span>
+      <KfLabel k="risk" />
       <Badge map={GATE} value={data.risk_gate} className="lg" />
-      <small>{p.risk?.critical_gaps?.length ? `${p.risk.critical_gaps.length} điểm cần xác minh` : 'Không có điểm trọng yếu'}</small>
+      <small>{gaps ? `${gaps} điểm trọng yếu cần xác minh` : GATE_PLAIN[data.risk_gate] || '—'}</small>
     </div>
     <div className="rl-kf">
-      <span>{provisional ? 'Điểm tạm' : 'Điểm chính thức'}</span>
-      <strong>{score(data.official_total ?? data.normalized_score)}<small>/100</small></strong>
-      <small>Độ phủ dữ liệu {num(sc.coverage ?? data.score_coverage, 0)}% · Tin cậy {CONFIDENCE[sc.confidence || data.score_confidence]?.vi || '—'}</small>
+      <KfLabel k="score" />
+      <strong>{score(data.official_total ?? data.normalized_score)}<small>/100</small>{provisional && <em className="rl-kf-tag">tạm</em>}</strong>
+      <small>Dựa trên {num(sc.coverage ?? data.score_coverage, 0)}% dữ liệu cần có · độ tin cậy {(CONFIDENCE[sc.confidence || data.score_confidence]?.vi || '—').toLowerCase()}</small>
     </div>
     <div className="rl-kf">
-      <span>Giá trị hợp lý</span>
-      <strong>{price(v.fair_value ?? data.fair_value)}</strong>
-      <small>Giá {price(v.price ?? data.price)} ngày {dateText(v.price_date ?? data.price_date)}</small>
+      <KfLabel k="value" />
+      <strong>{price(fv)}<small> đ</small></strong>
+      <small>{isNum(px) ? `Giá tham chiếu ${price(px)} (${dateText(v.price_date ?? data.price_date)})` : 'Chưa có giá tham chiếu'}</small>
     </div>
     <div className="rl-kf">
-      <span>Biên an toàn (MOS)</span>
-      <strong className={mosOk ? 'good' : 'warn'}>{pct(v.mos ?? data.mos)}</strong>
-      <small>Yêu cầu tối thiểu {pct(v.required_mos ?? data.required_mos)}{isNum(v.max_buy) ? ` · Mua tối đa ${price(v.max_buy)}` : ''}</small>
+      <KfLabel k="mos" />
+      <strong className={isNum(mos) ? (mosOk ? 'good' : 'warn') : ''}>{pct(mos)}</strong>
+      {isNum(mos) && isNum(req) && <div className="rl-kf-bar" title={`Biên an toàn ${pct(mos)} / yêu cầu ${pct(req)}`}>
+        <i style={{ width: `${Math.max(0, Math.min(100, (mos / req) * 100))}%` }} className={mosOk ? 'ok' : ''} /></div>}
+      <small>{isNum(mos) && isNum(req)
+        ? (mosOk ? `Đạt mức tối thiểu ${pct(req)}` : `Cần tối thiểu ${pct(req)}${isNum(v.max_buy ?? data.max_buy) ? `, tức giá ≤ ${price(v.max_buy ?? data.max_buy)}` : ''}`)
+        : 'Chưa đủ căn cứ để tính'}</small>
     </div>
   </div>
 }
@@ -912,7 +967,7 @@ function ScorecardBlock({ scorecard, criteria }) {
 function RiskBlock({ risk }) {
   if (!risk) return null
   return <>
-    <div className="rl-gate-line">Cổng rủi ro: <Badge map={GATE} value={risk.gate} className="lg" /></div>
+    <div className="rl-gate-line">Mức rủi ro: <Badge map={GATE} value={risk.gate} className="lg" /></div>
     {risk.critical_gaps?.length > 0 && <Gaps items={risk.critical_gaps} title="Điểm trọng yếu chưa xác minh" />}
     <div className="rl-risks">
       {(risk.items || []).map((r, i) => <div className="rl-risk" key={i}>
@@ -1467,9 +1522,9 @@ function WhatsNew({ item, data, history, sections }) {
   const cur = items.find(i => i.record_id === data.record_id) || data
   const facts = []
   if (old) {
-    if (old.decision_status !== cur.decision_status) facts.push(<>Quyết định: <Badge map={DECISION} value={old.decision_status} /> → <Badge map={DECISION} value={cur.decision_status} /></>)
-    if (old.risk_gate !== cur.risk_gate) facts.push(<>Cổng rủi ro: <Badge map={GATE} value={old.risk_gate} /> → <Badge map={GATE} value={cur.risk_gate} /></>)
-    const rows = [['Giá trị hợp lý', d => d.fair_value, price, 'rel'], ['MOS', d => d.mos, pct, 'pp'], ['Điểm', d => d.official_total ?? d.normalized_score, score, 'abs']]
+    if (old.decision_status !== cur.decision_status) facts.push(<>Kết luận: <Badge map={DECISION} value={old.decision_status} /> → <Badge map={DECISION} value={cur.decision_status} /></>)
+    if (old.risk_gate !== cur.risk_gate) facts.push(<>Mức rủi ro: <Badge map={GATE} value={old.risk_gate} /> → <Badge map={GATE} value={cur.risk_gate} /></>)
+    const rows = [['Giá trị ước tính', d => d.fair_value, price, 'rel'], ['Biên an toàn', d => d.mos, pct, 'pp'], ['Điểm chất lượng', d => d.official_total ?? d.normalized_score, score, 'abs']]
     rows.forEach(([label, value, fmt, delta]) => {
       const a = value(old), b = value(cur)
       if (isNum(a) && isNum(b) && a !== b) facts.push(<>{label}: {fmt(a)} → <b>{fmt(b)}</b> <span className="rl-muted">({deltaText({ value, delta }, old, cur)})</span></>)
@@ -1718,7 +1773,7 @@ function PublicationTimeline({ item, items }) {
       <time>{dateText(e.at)}</time>
       {e.kind === 'published' && <div>
         <b>Công bố R{e.i.revision}</b>{e.i.role === 'current' && <> <Badge map={ROLE} value="current" /></>}
-        <p className="rl-muted rl-small">Thời điểm đánh giá {dateText(e.i.as_of)} · Dữ liệu đến {dateText(e.i.cutoff)} · <Badge map={DECISION} value={e.i.decision_status} /> <Badge map={GATE} value={e.i.risk_gate} /> · Giá trị hợp lý {price(e.i.fair_value)}</p>
+        <p className="rl-muted rl-small">Thời điểm đánh giá {dateText(e.i.as_of)} · Dữ liệu đến {dateText(e.i.cutoff)} · <Badge map={DECISION} value={e.i.decision_status} /> <Badge map={GATE} value={e.i.risk_gate} /> · Giá trị ước tính {price(e.i.fair_value)}</p>
         {Array.isArray(e.i.change_log) && e.i.change_log.length > 0 && <details className="rl-changelog"><summary>Nhật ký thay đổi ({e.i.change_log.length})</summary><BulletList items={e.i.change_log} /></details>}
         <a href={e.i.role === 'current' ? profileHref(item) : recordHref(item, e.i.record_id)}>Đọc R{e.i.revision} →</a>
       </div>}
@@ -1730,13 +1785,13 @@ function PublicationTimeline({ item, items }) {
 }
 
 const DIFF_ROWS = [
-  { label: 'Quyết định', cell: d => <Badge map={DECISION} value={d.decision_status} code={false} />, key: d => d.decision_status },
-  { label: 'Cổng rủi ro', cell: d => <Badge map={GATE} value={d.risk_gate} code={false} />, key: d => d.risk_gate },
-  { label: 'Giá trị hợp lý', value: d => d.fair_value, fmt: price, delta: 'rel' },
+  { label: 'Kết luận', cell: d => <Badge map={DECISION} value={d.decision_status} code={false} />, key: d => d.decision_status },
+  { label: 'Mức rủi ro', cell: d => <Badge map={GATE} value={d.risk_gate} code={false} />, key: d => d.risk_gate },
+  { label: 'Giá trị ước tính', value: d => d.fair_value, fmt: price, delta: 'rel' },
   { label: 'Giá tham chiếu', value: d => d.price, fmt: price, delta: 'rel', note: d => dateText(d.price_date) },
-  { label: 'Biên an toàn (MOS)', value: d => d.mos, fmt: pct, delta: 'pp' },
+  { label: 'Biên an toàn', value: d => d.mos, fmt: pct, delta: 'pp' },
   { label: 'Upside', value: d => d.upside, fmt: pct, delta: 'pp' },
-  { label: 'Điểm scorecard', value: d => d.official_total ?? d.normalized_score, fmt: score, delta: 'abs' },
+  { label: 'Điểm chất lượng', value: d => d.official_total ?? d.normalized_score, fmt: score, delta: 'abs' },
   { label: 'Độ phủ dữ liệu', value: d => d.score_coverage, fmt: v => `${num(v, 0)}%`, delta: 'abs' },
   { label: 'Thời điểm đánh giá', cell: d => dateText(d.as_of), key: d => d.as_of },
   { label: 'Dữ liệu đến (cutoff)', cell: d => dateText(d.cutoff), key: d => d.cutoff },
@@ -1794,7 +1849,7 @@ function VersionsTab({ item, history, currentId }) {
   return <section className="rl-ptab-body">
     <HistoryState history={history} />
     {items.length > 0 && <div className="rl-table-wrap"><table className="rl-table rl-history">
-      <thead><tr><th scope="col">Bản</th><th scope="col">Vai trò</th><th scope="col">Thời điểm đánh giá</th><th scope="col">Công bố</th><th scope="col">Quyết định</th><th scope="col" className="num">Giá trị hợp lý</th><th scope="col" className="num">Độ phủ</th><th scope="col">So sánh</th></tr></thead>
+      <thead><tr><th scope="col">Bản</th><th scope="col">Vai trò</th><th scope="col">Thời điểm đánh giá</th><th scope="col">Công bố</th><th scope="col">Kết luận</th><th scope="col" className="num">Giá trị ước tính</th><th scope="col" className="num">Độ phủ</th><th scope="col">So sánh</th></tr></thead>
       <tbody>{[...items].reverse().map(i => i.role === 'withdrawn'
         ? <tr key={i.record_id} className="rl-withdrawn"><th scope="row">R{i.revision}</th><td><Badge map={ROLE} value="withdrawn" /></td><td colSpan={6} className="rl-muted">Đã thu hồi ngày {dateText(i.withdrawn_at)}. Nội dung không còn hiển thị.</td></tr>
         : <tr key={i.record_id}>
@@ -1821,7 +1876,7 @@ function CurrentHint({ item, data, history }) {
   const cur = history?.items?.find(i => i.record_id === data.current_record_id)
   if (!cur) return <> <a href={profileHref(item)}>Mở bản hiện hành →</a></>
   const fv = isNum(data.fair_value) && isNum(cur.fair_value) && data.fair_value !== cur.fair_value
-    ? ` Giá trị hợp lý ở R${cur.revision}: ${price(cur.fair_value)} (${deltaText({ value: d => d.fair_value, delta: 'rel' }, data, cur)}).` : ''
+    ? ` Giá trị ước tính ở R${cur.revision}: ${price(cur.fair_value)} (${deltaText({ value: d => d.fair_value, delta: 'rel' }, data, cur)}).` : ''
   return <>{` Bản hiện hành là R${cur.revision}.${fv}`} <a href={profileHref(item)}>Đọc R{cur.revision} →</a>{' · '}
     <a href={profileHref(item, 'phien-ban') + `&so-sanh=${data.revision}-${cur.revision}`}>Xem khác biệt</a></>
 }
@@ -1982,17 +2037,17 @@ function useMany(items) {
 
 // Hàng của bảng so sánh. best: 'max' tô đậm giá trị tốt nhất giữa các bài.
 const COMPARE_ROWS = [
-  { group: 'Kết luận' },
-  { label: 'Quyết định', cell: d => <Badge map={DECISION} value={d.decision_status} code={false} /> },
+  { group: 'Tổng quan' },
+  { label: 'Kết luận', cell: d => <Badge map={DECISION} value={d.decision_status} code={false} /> },
   { label: 'Luận điểm', cell: d => <Badge map={THESIS} value={d.thesis_status || d.payload?.decision?.thesis_status} code={false} /> },
-  { label: 'Cổng rủi ro', cell: d => <Badge map={GATE} value={d.risk_gate} code={false} /> },
-  { label: 'Điểm scorecard', value: d => d.official_total ?? d.normalized_score, best: 'max',
+  { label: 'Mức rủi ro', cell: d => <Badge map={GATE} value={d.risk_gate} code={false} /> },
+  { label: 'Điểm chất lượng', value: d => d.official_total ?? d.normalized_score, best: 'max',
     cell: d => <>{score(d.official_total ?? d.normalized_score)}<small className="rl-muted">/100{d.official_total == null && d.normalized_score != null ? ' · tạm' : ''}</small></> },
   { label: 'Độ phủ · tin cậy', cell: d => `${num(d.payload?.scorecard?.coverage ?? d.score_coverage, 0)}% · ${CONFIDENCE[d.payload?.scorecard?.confidence || d.score_confidence]?.vi || '—'}` },
   { group: 'Định giá' },
   { label: 'Giá thị trường', cell: d => <>{price(d.payload?.valuation?.price ?? d.price)}<small className="rl-muted"> · {dateText(d.payload?.valuation?.price_date ?? d.price_date)}</small></> },
-  { label: 'Giá trị hợp lý', cell: d => price(d.payload?.valuation?.fair_value ?? d.fair_value) },
-  { label: 'Biên an toàn (MOS)', value: d => d.payload?.valuation?.mos ?? d.mos, best: 'max',
+  { label: 'Giá trị ước tính', cell: d => price(d.payload?.valuation?.fair_value ?? d.fair_value) },
+  { label: 'Biên an toàn', value: d => d.payload?.valuation?.mos ?? d.mos, best: 'max',
     cell: d => { const v = d.payload?.valuation || {}; const m = v.mos ?? d.mos; const r = v.required_mos ?? d.required_mos
       return <><span className={isNum(m) && isNum(r) ? (m >= r ? 'good' : 'warn') : ''}>{pct(m)}</span><small className="rl-muted"> · yêu cầu {pct(r)}</small></> } },
   { label: 'Upside / downside', value: d => d.payload?.valuation?.upside ?? d.upside, best: 'max',
