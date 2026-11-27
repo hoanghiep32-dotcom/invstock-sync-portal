@@ -1,4 +1,4 @@
-// public-research-library v6: chỉ đọc bản đã xuất bản. Khách xem 'public'; người đã đăng nhập xem thêm 'members'.
+// public-research-library v7 (list trả thêm previous): chỉ đọc bản đã xuất bản. Khách xem 'public'; người đã đăng nhập xem thêm 'members'.
 // GET ?action=list | ?action=research&ticker=FPT[&exchange=HOSE] | ?action=screening&lineage_key=...
 //     ?action=history&ticker=FPT[&exchange=HOSE] | ?action=history&lineage_key=...   (các bản từng xuất bản của chuỗi)
 //     ?action=record&id=<record_id>                                                 (đường dẫn cố định một bản)
@@ -43,6 +43,16 @@ Deno.serve(async (req) => {
         .order("published_at", { ascending: false }).limit(500);
       if (error) throw error;
       const items = (data ?? []).map((p: any) => ({ lineage_key: p.lineage_key, published_at: p.published_at, visibility: p.visibility, ...p.record }));
+      // Bản liền trước (bản lịch sử được phép xem) của mỗi mã, để trang chủ hiện mũi tên thay đổi. Không trả nội dung bài.
+      const { data: hist, error: he } = !items.length ? { data: [], error: null } : await db.from("lib_record_publications")
+        .select("lineage_key,record:lib_records!lib_record_publications_record_id_fkey(revision,decision_status,risk_gate,fair_value,mos,official_total,normalized_score)")
+        .eq("role", "historical").in("visibility", vis).in("lineage_key", items.map((i: any) => i.lineage_key));
+      if (he) throw he;
+      for (const i of items as any[]) {
+        const prev = (hist ?? []).filter((h: any) => h.lineage_key === i.lineage_key && h.record && h.record.revision < i.revision)
+          .map((h: any) => h.record).sort((a: any, b: any) => b.revision - a.revision)[0];
+        if (prev) i.previous = prev;
+      }
       return json({ success: true, research: items.filter((i) => i.record_type === "research"), screenings: items.filter((i) => i.record_type === "screening") }, 200, cache);
     }
     const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

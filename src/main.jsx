@@ -5,6 +5,7 @@ import PublicLibrary from './library.jsx'
 import './library.css'
 import GlossaryAdminPanel from './glossaryAdmin.jsx'
 import ResearchOpsPanel from './researchOpsAdmin.jsx'
+import { TodoPanel, useAdminLists, matches } from './adminTodo.jsx'
 
 // InvStock Sync Portal – chuẩn v2.0.0
 // Quy trình (file 08): PREVIEW -> duyệt đúng SHA-256 -> SYNC -> VERIFY. Xuất bản là bước riêng của admin.
@@ -92,14 +93,17 @@ function SyncPanel({ session, onSynced }) {
 
   async function runSync() {
     setBusy(true); setError('')
-    const r = await callFn('lib-sync', { action: 'sync', payload_base64: b64, approved_sha256: hashConfirm.trim().toLowerCase(), approval_text: approvalText }, session)
+    // Người duyệt gõ 8 ký tự cuối để xác nhận đúng bản đang xem; máy chủ vẫn so đủ 64 ký tự với bytes của file.
+    const r = await callFn('lib-sync', { action: 'sync', payload_base64: b64, approved_sha256: preview.sha256, approval_text: approvalText }, session)
     setResult(r.data)
     if (!r.ok) setError(r.data.error || r.data.stage || `Lỗi ${r.status}`)
     else onSynced()
     setBusy(false)
   }
 
-  const canSync = preview?.valid && !preview.blockers?.length && hashConfirm.trim().toLowerCase() === preview.sha256 && approvalText.trim().length >= 8
+  const tail = preview?.sha256 ? preview.sha256.slice(-8) : ''
+  const tailOk = Boolean(tail) && hashConfirm.trim().toLowerCase() === tail
+  const canSync = preview?.valid && !preview.blockers?.length && tailOk && approvalText.trim().length >= 8
 
   return <section className="panel">
     <h2>1. Đồng bộ file JSON v2</h2>
@@ -113,7 +117,7 @@ function SyncPanel({ session, onSynced }) {
     {preview && <>
       <div className="summary-grid">
         <div className="summary-cell"><span>Kết quả kiểm tra</span><strong className={preview.valid ? '' : 'danger'}>{preview.valid ? 'Đạt validator v2.0.0' : 'Không đạt'}</strong></div>
-        <div className="summary-cell"><span>SHA-256 (máy chủ tính)</span><code>{preview.sha256}</code></div>
+        <div className="summary-cell"><span>SHA-256 (máy chủ tính)</span><code>{preview.sha256.slice(0, -8)}<mark>{preview.sha256.slice(-8)}</mark></code></div>
         {preview.record && <>
           <div className="summary-cell"><span>Loại / mã</span><strong>{preview.record.record_type} · {preview.record.ticker ? `${preview.record.ticker} (${preview.record.exchange})` : preview.record.universe}</strong></div>
           <div className="summary-cell"><span>record_id · revision</span><strong>{preview.record.record_id} · R{preview.record.revision}</strong></div>
@@ -126,8 +130,9 @@ function SyncPanel({ session, onSynced }) {
       {!!preview.errors?.length && <div className="error"><b>Lỗi kiểm tra:</b><ul>{preview.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></div>}
       {!!preview.blockers?.length && <div className="error"><b>Chưa thể sync:</b><ul>{preview.blockers.map(b => <li key={b}>{b}</li>)}</ul></div>}
       {preview.valid && !preview.blockers?.length && <div className="approval">
-        <label>Gõ lại đúng SHA-256 ở trên để xác nhận bạn duyệt đúng bản này</label>
-        <input value={hashConfirm} onChange={e => setHashConfirm(e.target.value)} placeholder="64 ký tự hex" spellCheck="false" />
+        <label>Gõ 8 ký tự cuối của SHA-256 ở trên (phần tô đậm) để xác nhận bạn duyệt đúng bản này</label>
+        <input value={hashConfirm} onChange={e => setHashConfirm(e.target.value)} placeholder="8 ký tự cuối" maxLength={8} spellCheck="false" autoComplete="off" style={{ maxWidth: 200, fontFamily: 'ui-monospace, monospace' }} />
+        {hashConfirm.trim().length === 8 && !tailOk && <div className="error">Chưa khớp 8 ký tự cuối của bản đang xem.</div>}
         <label>Ghi chú duyệt (tối thiểu 8 ký tự)</label>
         <input value={approvalText} onChange={e => setApprovalText(e.target.value)} placeholder="Ví dụ: Duyệt FPT R2 sau khi đọc lại nguồn" />
         <button className="button danger-button" disabled={!canSync || busy} onClick={runSync}>Sync vào thư viện (chưa xuất bản)</button>
@@ -147,7 +152,7 @@ const ERR_VI = {
   record_not_verified: 'Bản này chưa VERIFIED.'
 }
 
-function RecordsPanel({ session, refreshKey }) {
+function RecordsPanel({ session, refreshKey, filter = '' }) {
   const [rows, setRows] = useState([])
   const [pubs, setPubs] = useState([])
   const [roles, setRoles] = useState({})
@@ -175,13 +180,15 @@ function RecordsPanel({ session, refreshKey }) {
   const lineageOf = row => row.record_type === 'research' ? `research:${row.ticker}:${row.exchange}` : null
   const currentOf = key => pubs.find(p => p.lineage_key === key)?.record_id ?? null
   const revOf = id => rows.find(r => r.record_id === id)?.revision
-  return <section className="panel">
+  const shown = rows.filter(r => matches(filter, r.ticker, r.universe, r.strategy))
+  return <section className="panel" id="xuat-ban">
     <div className="section-head"><h2>2. Thư viện & xuất bản</h2><button className="button subtle" onClick={load}>Tải lại</button></div>
     <p className="muted">Chỉ bản đã VERIFIED mới xuất bản được. Mỗi mã có một bản hiện hành; xuất bản bản mới thì bản cũ chuyển thành bản lịch sử (vẫn đọc được). Đưa bản cũ trở lại, khôi phục hoặc thu hồi đều cần lý do và được ghi nhật ký.</p>
     {error && <div className="error">{error}</div>}
     {msg && <div className="message">{msg}</div>}
     {!rows.length && <p className="muted">Chưa có bản ghi nào.</p>}
-    {rows.map(row => {
+    {rows.length > 0 && filter.trim() && <p className="muted">Đang lọc theo “{filter.trim()}”: {shown.length} / {rows.length} bản ghi.</p>}
+    {shown.map(row => {
       const role = roles[row.record_id]
       const key = lineageOf(row) || role?.lineage_key
       const cur = key ? currentOf(key) : null
@@ -230,6 +237,7 @@ function Admin() {
   const [session, setSession] = useState(null)
   const [ready, setReady] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [filter, setFilter] = useState('')
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true) })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
@@ -237,6 +245,11 @@ function Admin() {
   }, [])
   if (!ready) return <main className="shell"><p className="muted">Đang tải…</p></main>
   if (!session) return <SignIn />
+  return <AdminHome session={session} refreshKey={refreshKey} setRefreshKey={setRefreshKey} filter={filter} setFilter={setFilter} />
+}
+
+function AdminHome({ session, refreshKey, setRefreshKey, filter, setFilter }) {
+  const lists = useAdminLists(session, callFn, refreshKey)
   return <main className="shell">
     <header className="topbar">
       <div><div className="eyebrow">INVSTOCK SYNC PORTAL · CHUẨN v2.0.0</div><h1>Đồng bộ & xuất bản</h1></div>
@@ -247,9 +260,16 @@ function Admin() {
       </div>
     </header>
     <div className="notice">Sync không tự xuất bản. Sau khi sync, bản ghi là bất biến; muốn sửa phải tạo revision mới có parent_id.</div>
+    <TodoPanel lists={lists} onFilter={t => { setFilter(t); document.getElementById('xuat-ban')?.scrollIntoView({ behavior: 'smooth' }) }} />
     <SyncPanel session={session} onSynced={() => setRefreshKey(k => k + 1)} />
-    <RecordsPanel session={session} refreshKey={refreshKey} />
-    <ResearchOpsPanel session={session} callFn={callFn} refreshKey={refreshKey} />
+    <div className="filter-bar">
+      <label htmlFor="admin-filter">Lọc theo mã</label>
+      <input id="admin-filter" type="search" value={filter} onChange={e => setFilter(e.target.value)} placeholder="Ví dụ: FPT" />
+      {filter && <button className="button subtle" onClick={() => setFilter('')}>Bỏ lọc</button>}
+      <span className="muted">Áp dụng cho mục 2 và 3.</span>
+    </div>
+    <RecordsPanel session={session} refreshKey={refreshKey} filter={filter} />
+    <ResearchOpsPanel session={session} callFn={callFn} refreshKey={refreshKey} filter={filter} />
     <GlossaryAdminPanel session={session} callFn={callFn} />
     <footer>InvStock Tracker · Admin</footer>
   </main>
