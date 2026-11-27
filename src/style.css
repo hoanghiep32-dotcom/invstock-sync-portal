@@ -67,3 +67,17 @@ footer{color:#6f829d;text-align:center;font-size:11px;margin-top:34px}
 .admin-navigation .secondary{background:#e8f1fc;color:#214e7b;border:1px solid #c4d8ef}
 .admin-navigation .subtle{background:#f1f5f9;color:#475569;border:1px solid #d9e2ec}
 @media(max-width:650px){.admin-navigation{justify-content:flex-start;margin:16px 0 0}.topbar{display:flex;flex-direction:column}.account{margin-top:12px}}
+.todo-panel{border-color:#3b5a85}
+.todo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.todo-group{background:#0e1a2b;border:1px solid #2a3c54;border-radius:10px;padding:12px}
+.todo-title{display:block;color:#dce8f8;text-decoration:none;font-size:14px;margin-bottom:8px}
+.todo-title b{display:inline-block;min-width:26px;padding:1px 7px;margin-right:6px;border-radius:999px;background:#f0bb5c;color:#1b1406;text-align:center}
+.todo-title:hover{text-decoration:underline}
+.todo-items{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.todo-chip{font:inherit;font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid #35506f;background:#132338;color:#b9d7ff;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-chip:hover{border-color:#86b8f2}
+.todo-chip.static{cursor:default}
+.filter-bar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 14px;margin:18px 0 -6px;background:rgba(14,26,43,.97);border:1px solid #2a3c54;border-radius:12px}
+.filter-bar label{font-size:13px;font-weight:700;color:#dce8f8}
+.filter-bar input{max-width:220px;margin:0}
+code mark{background:#f0bb5c;color:#1b1406;border-radius:3px;padding:0 2px}

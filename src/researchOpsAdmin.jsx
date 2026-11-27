@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { matches } from './adminTodo.jsx'
 
 // GĐ 3–5 (tài liệu 13): manifest khối, chuyên đề (Research Note), tác vụ (Research Operation) và tích hợp.
 // Mọi bước đều qua Edge Function lib-research-ops (chỉ admin). Không bước nào đổi bản hiện hành: tích hợp tạo bản mới chưa xuất bản.
@@ -114,7 +115,7 @@ function IntegrationBox({ op, session, callFn, onDone }) {
   </div>
 }
 
-export default function ResearchOpsPanel({ session, callFn, refreshKey }) {
+export default function ResearchOpsPanel({ session, callFn, refreshKey, filter = '' }) {
   const [state, setState] = useState(null)
   const [records, setRecords] = useState([])
   const [error, setError] = useState('')
@@ -140,15 +141,19 @@ export default function ResearchOpsPanel({ session, callFn, refreshKey }) {
   const setInput = (id, k, v) => setInputs({ ...inputs, [id]: { ...inputs[id], [k]: v } })
   const manifestOf = id => state?.manifests?.find(m => m.record_id === id)
   const pubOf = id => state?.note_publications?.find(p => p.note_version_id === id)
+  const tickerOf = id => records.find(r => r.record_id === id)?.ticker
+  const shownRecords = records.filter(r => matches(filter, r.ticker))
+  const shownNotes = (state?.notes || []).filter(n => matches(filter, tickerOf(n.base_record_id), n.title))
+  const shownOps = (state?.operations || []).filter(o => matches(filter, tickerOf(o.base_record_id), o.operation_type))
 
-  return <section className="panel">
+  return <section className="panel" id="khoi-chuyen-de">
     <div className="section-head"><h2>3. Khối, chuyên đề & tác vụ</h2><button className="button subtle" onClick={load}>Tải lại</button></div>
     <p className="muted">Manifest kê 27 khối của mỗi bản, dựng từ bytes gốc. Chuyên đề được duyệt đúng SHA-256 rồi xuất bản riêng; không làm đổi bản hiện hành, điểm hay quyết định. Tác vụ có bản ứng viên (CANDIDATE_SNAPSHOT) được tích hợp thành bản mới sau khi xem trước và duyệt đúng bundle SHA-256; bản mới chưa được xuất bản cho tới khi anh/chị xuất bản ở mục 2.</p>
     {error && <div className="error">{error}</div>}
     {msg && <div className="message">{msg}</div>}
 
     <h3>Manifest theo bản</h3>
-    {records.map(r => {
+    {shownRecords.map(r => {
       const m = manifestOf(r.record_id)
       const v = verify[r.record_id]
       return <div className="summary-cell" key={r.record_id} style={{ margin: '8px 0' }}>
@@ -167,7 +172,7 @@ export default function ResearchOpsPanel({ session, callFn, refreshKey }) {
 
     <h3>Chuyên đề</h3>
     <ImportBox kind="note" session={session} callFn={callFn} onDone={load} />
-    {(state?.notes || []).map(n => {
+    {shownNotes.map(n => {
       const pub = pubOf(n.note_version_id)
       const primary = (n.links || []).find(l => l.role === 'PRIMARY')?.module_key
       return <div className="summary-cell" key={n.note_version_id} style={{ margin: '8px 0' }}>
@@ -197,7 +202,7 @@ export default function ResearchOpsPanel({ session, callFn, refreshKey }) {
 
     <h3>Tác vụ nghiên cứu</h3>
     <ImportBox kind="operation" session={session} callFn={callFn} onDone={load} />
-    {(state?.operations || []).map(o => {
+    {shownOps.map(o => {
       const integ = state?.integrations?.find(g => g.operation_id === o.operation_id)
       const made = integ && records.find(r => r.record_id === integ.record_id)
       return <div className="summary-cell" key={o.operation_id} style={{ margin: '8px 0' }}>

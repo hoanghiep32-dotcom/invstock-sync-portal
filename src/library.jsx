@@ -288,7 +288,7 @@ const COMMITTEE = {
   portfolio: 'Quản lý danh mục'
 }
 
-function Badge({ map, value, code = true, className = '' }) {
+function Badge({ map, value, code = false, className = '' }) {
   if (!value) return <span className="rl-badge tone-gray">—</span>
   const m = map[value]
   return <span className={`rl-badge tone-${m?.tone || 'gray'} ${className}`} title={value}>
@@ -337,7 +337,7 @@ const HomeIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 1
 
 // Hàng tab: Thư viện luôn ở đầu, sau đó là các bài đang mở. Đóng tab không xóa bài, chỉ bỏ khỏi hàng.
 // Tab hồ sơ (Tổng quan / Lịch sử…) vẫn thuộc cùng một tab bài đang mở.
-const withoutProfileTab = path => path.replace(/&tab=[a-z-]+/, '')
+const withoutProfileTab = path => path.replace(/&tab=[a-z-]+/, '').replace(/&so-sanh=[0-9-]+/, '')
 
 function TabStrip() {
   const { tabs, home } = useTabs()
@@ -434,6 +434,43 @@ function OpenTabButton({ item, compact = false }) {
   </button>
 }
 
+// Độ tươi dữ liệu theo ngày cutoff: quá 1 quý thì nhắc, quá 2 quý thì cần cập nhật. Vừa công bố trong 14 ngày thì báo mới.
+const DAY = 86400000
+function freshness(item) {
+  const age = item.cutoff ? (Date.now() - new Date(item.cutoff).getTime()) / DAY : null
+  const sincePub = item.published_at ? (Date.now() - new Date(item.published_at).getTime()) / DAY : null
+  if (isNum(age) && age > 190) return { tone: 'orange', vi: 'Cần cập nhật', tip: `Dữ liệu đã ${Math.round(age)} ngày, quá 2 quý báo cáo` }
+  if (isNum(age) && age > 100) return { tone: 'amber', vi: 'Dữ liệu hơn 1 quý', tip: `Dữ liệu đã ${Math.round(age)} ngày` }
+  if (isNum(sincePub) && sincePub <= 14) return { tone: 'blue', vi: item.previous ? 'Mới cập nhật' : 'Mới công bố', tip: `Công bố ${dateText(item.published_at)}` }
+  return null
+}
+function FreshTag({ item }) {
+  const f = freshness(item)
+  return f ? <span className={`rl-badge tone-${f.tone} rl-fresh`} title={f.tip}>{f.vi}</span> : null
+}
+// Mũi tên thay đổi so với bản liền trước (list trả kèm previous khi mã đã có bản lịch sử).
+function Delta({ item, value, kind = 'rel' }) {
+  const prev = item.previous
+  if (!prev) return null
+  const a = value(prev), b = value(item)
+  if (!isNum(a) || !isNum(b) || a === b) return null
+  const up = b > a
+  const text = kind === 'rel' ? `${up ? '+' : ''}${((b / a - 1) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`
+    : kind === 'pp' ? `${up ? '+' : ''}${((b - a) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} đ%`
+    : `${up ? '+' : ''}${(b - a).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}`
+  return <small className={`rl-delta ${up ? 'up' : 'down'}`} title={`So với R${prev.revision}`}>{up ? '▲' : '▼'} {text}</small>
+}
+const scoreOf = d => d.official_total ?? d.normalized_score
+function CardChange({ item }) {
+  const prev = item.previous
+  if (!prev) return null
+  const parts = []
+  if (prev.decision_status !== item.decision_status) parts.push(<span key="d">quyết định <Badge map={DECISION} value={prev.decision_status} /> → <Badge map={DECISION} value={item.decision_status} /></span>)
+  if (prev.risk_gate !== item.risk_gate) parts.push(<span key="g">rủi ro <Badge map={GATE} value={prev.risk_gate} /> → <Badge map={GATE} value={item.risk_gate} /></span>)
+  if (isNum(scoreOf(prev)) && isNum(scoreOf(item)) && scoreOf(prev) !== scoreOf(item)) parts.push(<span key="s">điểm <Delta item={item} value={scoreOf} kind="abs" /></span>)
+  return <div className="rl-card-change">So với R{prev.revision}: {parts.length ? parts : <span className="rl-muted">quyết định và điểm giữ nguyên</span>}</div>
+}
+
 function ScoreMeter({ value, provisional }) {
   const v = isNum(value) ? Math.max(0, Math.min(100, value)) : null
   return <div className="rl-meter" title={provisional ? 'Điểm tạm: chưa đủ coverage để thành điểm chính thức' : 'Điểm chính thức'}>
@@ -454,13 +491,14 @@ function ResearchCard({ item }) {
       <Badge map={DECISION} value={item.decision_status} code={false} />
     </div>
     <ScoreMeter value={item.official_total ?? item.normalized_score} provisional={provisional} />
+    <CardChange item={item} />
     <dl className="rl-card-facts">
-      <div><dt>Giá trị hợp lý</dt><dd>{price(item.fair_value)}</dd></div>
+      <div><dt>Giá trị hợp lý</dt><dd>{price(item.fair_value)}<Delta item={item} value={d => d.fair_value} /></dd></div>
       <div><dt>MOS</dt><dd className={isNum(item.mos) && isNum(item.required_mos) && item.mos >= item.required_mos ? 'good' : ''}>{pct(item.mos)}</dd></div>
       <div><dt>Rủi ro</dt><dd><Badge map={GATE} value={item.risk_gate} code={false} /></dd></div>
     </dl>
     <div className="rl-card-foot">
-      <span>Dữ liệu đến {dateText(item.cutoff)} · R{item.revision}{item.visibility === 'members' ? ' · Thành viên' : ''}</span>
+      <span>Dữ liệu đến {dateText(item.cutoff)} · R{item.revision}{item.visibility === 'members' ? ' · Thành viên' : ''} <FreshTag item={item} /></span>
       <span className="rl-card-actions"><OpenTabButton item={item} /><span className="rl-card-cta">Đọc →</span></span>
     </div>
   </a>
@@ -474,10 +512,10 @@ function ResearchTable({ items }) {
       <td>{item.company}<div className="rl-muted rl-small">{item.sector}</div></td>
       <td><Badge map={DECISION} value={item.decision_status} code={false} /></td>
       <td><Badge map={GATE} value={item.risk_gate} code={false} /></td>
-      <td className="num">{score(item.official_total ?? item.normalized_score)}{item.official_total == null && item.normalized_score != null && <small className="rl-muted"> tạm</small>}</td>
-      <td className="num">{price(item.fair_value)}</td>
+      <td className="num">{score(item.official_total ?? item.normalized_score)}{item.official_total == null && item.normalized_score != null && <small className="rl-muted"> tạm</small>}<Delta item={item} value={scoreOf} kind="abs" /></td>
+      <td className="num">{price(item.fair_value)}<Delta item={item} value={d => d.fair_value} /></td>
       <td className="num">{pct(item.mos)}</td>
-      <td>{dateText(item.cutoff)}</td>
+      <td>{dateText(item.cutoff)} <small className="rl-muted">R{item.revision}</small><FreshTag item={item} /></td>
       <td><OpenTabButton item={item} compact /></td>
     </tr>)}</tbody>
   </table></div>
@@ -710,14 +748,20 @@ function ReportSection({ id, title, kicker, blocks, children }) {
   </section>
 }
 
+// Mã trạng thái tiếng Anh viết trong văn bản (WATCH, RESTRICTED…) được đọc thành nhãn tiếng Việt.
+// Chỉ thay đúng mã viết hoa đứng riêng; nội dung gốc trong JSON không đổi.
+const CODE_VI = Object.fromEntries([DECISION, GATE, THESIS].flatMap(m => Object.entries(m).map(([k, v]) => [k, v.vi])))
+const CODE_RE = new RegExp(`(?<![A-Za-z0-9_-])(${Object.keys(CODE_VI).sort((a, b) => b.length - a.length).map(k => k.replace(/[/]/g, '\\/')).join('|')})(?![A-Za-z0-9_-])`, 'g')
+const viCodes = text => typeof text === 'string' ? text.replace(CODE_RE, m => CODE_VI[m]) : text
+
 function Prose({ text }) {
   if (!text) return null
-  return <div className="rl-prose">{String(text).split(/\n{2,}/).map((p, i) => <p key={i}><Term>{p}</Term></p>)}</div>
+  return <div className="rl-prose">{viCodes(String(text)).split(/\n{2,}/).map((p, i) => <p key={i}><Term>{p}</Term></p>)}</div>
 }
 
 function BulletList({ items, tone = '' }) {
   if (!items?.length) return <p className="rl-muted">Không có.</p>
-  return <ul className={`rl-bullets ${tone}`}>{items.map((x, i) => <li key={i}><Term>{x}</Term></li>)}</ul>
+  return <ul className={`rl-bullets ${tone}`}>{items.map((x, i) => <li key={i}><Term>{viCodes(x)}</Term></li>)}</ul>
 }
 
 /* ---------- Các khối của Full Research ---------- */
@@ -741,7 +785,7 @@ function KeyFacts({ data, p }) {
     <div className="rl-kf">
       <span>{provisional ? 'Điểm tạm' : 'Điểm chính thức'}</span>
       <strong>{score(data.official_total ?? data.normalized_score)}<small>/100</small></strong>
-      <small>Coverage {num(sc.coverage ?? data.score_coverage, 0)}% · Tin cậy {CONFIDENCE[sc.confidence || data.score_confidence]?.vi || '—'}</small>
+      <small>Độ phủ dữ liệu {num(sc.coverage ?? data.score_coverage, 0)}% · Tin cậy {CONFIDENCE[sc.confidence || data.score_confidence]?.vi || '—'}</small>
     </div>
     <div className="rl-kf">
       <span>Giá trị hợp lý</span>
@@ -841,7 +885,7 @@ function ScorecardBlock({ scorecard, criteria }) {
     <div className="rl-stat-row">
       <div><span>Điểm chuẩn hóa</span><b>{score(scorecard.normalized_score)}</b></div>
       <div><span>Điểm chính thức</span><b>{score(scorecard.official_total)}</b></div>
-      <div><span>Coverage</span><b>{num(scorecard.coverage, 0)}%</b></div>
+      <div><span>Độ phủ dữ liệu</span><b>{num(scorecard.coverage, 0)}%</b></div>
       <div><span>Độ tin cậy</span><b><Badge map={CONFIDENCE} value={scorecard.confidence} code={false} /></b></div>
     </div>
     {scorecard.confidence_reason && <p className="rl-note">{scorecard.confidence_reason}</p>}
@@ -1282,7 +1326,33 @@ function BlockProvider({ data, history, children }) {
 }
 
 // Bảng khối × bản: đọc nhanh khối nào đổi ở từng revision.
+// Mặc định chỉ hiện các khối có cập nhật ở ít nhất một bản; đường dẫn kỹ thuật (/modules/…) chỉ hiện khi rê chuột.
 const REG_STATE = { CHANGED: 'Cập nhật', INHERITED: 'Giữ nguyên', INITIAL: 'Bản đầu' }
+function MatrixTable({ heads, cells, intro }) {
+  const [all, setAll] = useState(false)
+  const changed = BLOCKS.filter(b => cells(b).some(c => c?.state === 'CHANGED'))
+  const rows = all || !changed.length ? BLOCKS : changed
+  return <>
+    <h2 className="rl-ptab-h">Khối nội dung theo từng bản</h2>
+    <p className="rl-muted rl-small">{intro}</p>
+    <div className="rl-matrix-bar">
+      <span>{changed.length ? `${changed.length} / ${BLOCKS.length} khối có cập nhật` : 'Chưa khối nào thay đổi giữa các bản'}</span>
+      {changed.length > 0 && <button type="button" className="rl-link" onClick={() => setAll(!all)}>{all ? 'Chỉ hiện khối có cập nhật' : `Hiện cả ${BLOCKS.length} khối`}</button>}
+    </div>
+    <div className="rl-table-wrap"><table className="rl-table rl-block-matrix">
+      <thead><tr><th scope="col">Khối</th>{heads}</tr></thead>
+      <tbody>{rows.map(b => <tr key={b.path}>
+        <th scope="row" title={b.path}>{b.title}</th>
+        {cells(b).map((c, i) => <td key={i} className={c ? `rl-bm-${c.state.toLowerCase()}` : ''}>
+          {!c || c.state === 'ABSENT' ? <span className="rl-muted">—</span> : <>
+            {c.state === 'CHANGED' ? <b>{REG_STATE.CHANGED}</b> : c.state === 'INHERITED' ? <span className="rl-muted">{REG_STATE.INHERITED}</span> : REG_STATE.INITIAL}
+            {c.note && <small className="rl-bm-rev">{c.note}</small>}</>}
+        </td>)}
+      </tr>)}</tbody>
+    </table></div>
+  </>
+}
+
 function BlockMatrix({ history, item }) {
   const versions = useVersions(history, null)
   const reg = useApi(item ? { action: 'blocks', ticker: item.ticker, exchange: item.exchange } : null, [item?.ticker, item?.exchange])
@@ -1291,48 +1361,30 @@ function BlockMatrix({ history, item }) {
   if (versions.length < 2) return null
   const lin = blockLineage(versions)
   const changedCount = v => BLOCKS.filter(b => lin[b.path][v].state === 'CHANGED').length
-  return <>
-    <h2 className="rl-ptab-h">Khối nội dung theo từng bản</h2>
-    <p className="rl-muted rl-small">So sánh nội dung giữa các bản đã xuất bản để biết khối nào được cập nhật, khối nào giữ nguyên. Đây là đối chiếu hiển thị; manifest và phiên bản khối chính thức sẽ có ở giai đoạn sau.</p>
-    <div className="rl-table-wrap"><table className="rl-table rl-block-matrix">
-      <thead><tr><th scope="col">Khối</th>{versions.map((v, i) => <th key={v.record_id} scope="col">R{v.revision}{i > 0 && <small>{changedCount(i)} khối đổi</small>}</th>)}</tr></thead>
-      <tbody>{BLOCKS.map(b => <tr key={b.path}>
-        <th scope="row">{b.title}<small><code>{b.path}</code></small></th>
-        {lin[b.path].map((c, i) => <td key={i} className={`rl-bm-${c.state.toLowerCase()}`}>
-          {c.state === 'ABSENT' ? <span className="rl-muted">—</span> : c.state === 'CHANGED' ? <b>Cập nhật</b> : c.state === 'INITIAL' ? 'Bản đầu' : <span className="rl-muted">Giữ nguyên</span>}
-        </td>)}
-      </tr>)}</tbody>
-    </table></div>
-  </>
+  return <MatrixTable
+    intro="So sánh nội dung giữa các bản đã xuất bản để biết khối nào được cập nhật, khối nào giữ nguyên."
+    heads={versions.map((v, i) => <th key={v.record_id} scope="col">R{v.revision}{i > 0 && <small>{changedCount(i)} khối đổi</small>}</th>)}
+    cells={b => lin[b.path]} />
 }
 
 // Bảng khối × bản theo manifest chính thức (registry, tài liệu 13): B<n> là phiên bản của khối.
 function RegistryMatrix({ records }) {
   const at = records.map(r => Object.fromEntries(r.blocks.map(b => [b.path, b])))
   const changedCount = i => BLOCKS.filter(b => at[i][b.path]?.disposition === 'CHANGED').length
-  return <>
-    <h2 className="rl-ptab-h">Khối nội dung theo từng bản</h2>
-    <p className="rl-muted rl-small">Theo manifest khối của từng bản, dựng từ dữ liệu gốc đã duyệt. <b>B</b> là phiên bản của khối: khối giữ nguyên thì giữ số cũ, khối cập nhật thì tăng số.{records.some(r => r.provenance_kind === 'LEGACY_BACKFILL') && ' Manifest của các bản cũ được lập bổ sung sau khi xuất bản.'}</p>
-    <div className="rl-table-wrap"><table className="rl-table rl-block-matrix">
-      <thead><tr><th scope="col">Khối</th>{records.map((r, i) => <th key={r.record_id} scope="col">R{r.revision}{i > 0 && <small>{changedCount(i)} khối đổi</small>}</th>)}</tr></thead>
-      <tbody>{BLOCKS.map(b => <tr key={b.path}>
-        <th scope="row">{b.title}<small><code>{b.path}</code></small></th>
-        {at.map((row, i) => { const c = row[b.path]; return <td key={i} className={c ? `rl-bm-${c.disposition.toLowerCase()}` : ''}>
-          {!c ? <span className="rl-muted">—</span> : <>{c.disposition === 'CHANGED' ? <b>{REG_STATE.CHANGED}</b> : c.disposition === 'INHERITED' ? <span className="rl-muted">{REG_STATE.INHERITED}</span> : REG_STATE.INITIAL}
-            <small className="rl-bm-rev">B{c.block_revision}{c.change_class === 'SOURCE_REMAP' ? ' · chỉ đổi mã nguồn' : ''}</small></>}
-        </td> })}
-      </tr>)}</tbody>
-    </table></div>
-  </>
+  return <MatrixTable
+    intro={<>Theo manifest khối của từng bản, dựng từ dữ liệu gốc đã duyệt. <b>B</b> là phiên bản của khối: khối giữ nguyên thì giữ số cũ, khối cập nhật thì tăng số.{records.some(r => r.provenance_kind === 'LEGACY_BACKFILL') && ' Manifest của các bản cũ được lập bổ sung sau khi xuất bản.'}</>}
+    heads={records.map((r, i) => <th key={r.record_id} scope="col">R{r.revision}{i > 0 && <small>{changedCount(i)} khối đổi</small>}</th>)}
+    cells={b => at.map(row => { const c = row[b.path]; return c && { state: c.disposition, note: `B${c.block_revision}${c.change_class === 'SOURCE_REMAP' ? ' · chỉ đổi mã nguồn' : ''}` } })} />
 }
 
 // Hồ sơ cổ phiếu (tài liệu 12): Tổng quan = bản hiện hành; Chuyên đề; Cập nhật; Lịch sử các bản từng xuất bản.
 const PROFILE_TABS = [
   { id: 'tong-quan', title: 'Tổng quan' },
   { id: 'chuyen-de', title: 'Chuyên đề' },
-  { id: 'cap-nhat', title: 'Cập nhật' },
-  { id: 'lich-su', title: 'Lịch sử' }
+  { id: 'phien-ban', title: 'Phiên bản' }
 ]
+// Hai tab cũ Cập nhật và Lịch sử đã gộp vào Phiên bản; địa chỉ cũ vẫn mở đúng tab mới.
+const LEGACY_TABS = { 'cap-nhat': 'phien-ban', 'lich-su': 'phien-ban' }
 const ROLE = {
   current: { vi: 'Hiện hành', tone: 'green' },
   historical: { vi: 'Bản lịch sử', tone: 'gray' },
@@ -1345,21 +1397,98 @@ function ProfileTabs({ item, tab, history, noteCount = 0 }) {
   const n = history?.items?.length || 0
   return <nav className="rl-ptabs" aria-label="Hồ sơ cổ phiếu">
     {PROFILE_TABS.map(t => <a key={t.id} href={profileHref(item, t.id)} className={tab === t.id ? 'active' : ''} aria-current={tab === t.id ? 'page' : undefined}>
-      {t.title}{t.id === 'lich-su' && n > 0 && <small>{n}</small>}{t.id === 'chuyen-de' && noteCount > 0 && <small>{noteCount}</small>}
+      {t.title}{t.id === 'phien-ban' && n > 0 && <small>{n}</small>}{t.id === 'chuyen-de' && noteCount > 0 && <small>{noteCount}</small>}
     </a>)}
   </nav>
 }
 
 // Dòng trạng thái: các mốc thời gian và độ phủ của bản đang đọc.
-function RecordStatus({ data, role }) {
+function RecordStatus({ data, role, item, history }) {
   const sc = data.payload?.scorecard || {}
   return <div className="rl-status-line">
-    {role && <Badge map={ROLE} value={role} code={false} />}
-    <span>R{data.revision}</span>
+    {item && history?.items?.some(i => i.role !== 'withdrawn' && i.record_id !== data.record_id)
+      ? <RevisionSwitcher item={item} items={history.items} data={data} />
+      : <>{role && <Badge map={ROLE} value={role} />}<span>R{data.revision}</span></>}
     <span>Thời điểm đánh giá <b>{dateText(data.as_of)}</b></span>
     <span>Dữ liệu đến <b>{dateText(data.cutoff)}</b></span>
     <span>Công bố <b>{dateText(data.published_at)}</b></span>
-    <span>Coverage <b>{num(sc.coverage ?? data.score_coverage, 0)}%</b> · Tin cậy <b>{CONFIDENCE[sc.confidence || data.score_confidence]?.vi || '—'}</b></span>
+    <span>Độ phủ dữ liệu <b>{num(sc.coverage ?? data.score_coverage, 0)}%</b> · Tin cậy <b>{CONFIDENCE[sc.confidence || data.score_confidence]?.vi || '—'}</b></span>
+  </div>
+}
+
+// Bộ chọn phiên bản trên đầu bài: thấy ngay có bao nhiêu bản và chuyển sang bản khác.
+function RevisionSwitcher({ item, items, data }) {
+  const readable = [...items].filter(i => i.role !== 'withdrawn').reverse()
+  const me = readable.find(i => i.record_id === data.record_id)
+  const role = me?.role || data.role || 'current'
+  return <details className="rl-rev-switch">
+    <summary><Badge map={ROLE} value={role} /><b>R{data.revision}</b><span className="rl-muted">· {readable.length} phiên bản</span><span aria-hidden="true">▾</span></summary>
+    <ul role="list">{readable.map(i => <li key={i.record_id}>
+      <a href={i.role === 'current' ? profileHref(item) : recordHref(item, i.record_id)} aria-current={i.record_id === data.record_id ? 'page' : undefined}
+        className={i.record_id === data.record_id ? 'active' : ''}>
+        <b>R{i.revision}</b><span>{ROLE[i.role]?.vi}</span><small>Công bố {dateText(i.first_published_at)} · Dữ liệu đến {dateText(i.cutoff)}</small>
+        {Array.isArray(i.change_log) && i.change_log[0] && <em>{viCodes(String(i.change_log[0])).slice(0, 140)}</em>}
+      </a></li>)}
+      <li className="rl-rev-switch-all"><a href={profileHref(item, 'phien-ban')}>So sánh các phiên bản →</a></li>
+    </ul>
+  </details>
+}
+
+// "Có gì mới từ lần bạn đọc trước": trình duyệt nhớ bản đã đọc của từng mã; khi có bản mới hơn thì tóm tắt thay đổi chính
+// và liệt kê các mục có khối nội dung đổi (theo manifest), bấm là nhảy tới mục đó.
+const SEEN_KEY = 'invstock_seen_v1'
+const PATH_SECTION = {
+  '/modules/executive_summary': 'tom-tat', '/decision': 'luan-diem', '/modules/decision_monitoring': 'luan-diem',
+  '/valuation': 'dinh-gia', '/modules/valuation_engine': 'dinh-gia', '/scorecard': 'scorecard',
+  '/risk': 'rui-ro', '/modules/scorecard_risk': 'rui-ro', '/catalysts': 'catalyst', '/monitoring': 'catalyst',
+  '/modules/catalysts_expectations': 'catalyst', '/core10': 'phan-bien', '/committee': 'phan-bien', '/sources': 'nguon',
+  ...Object.fromEntries(CHAPTERS.flatMap(c => c.keys.map(k => [`/modules/${k}`, c.id])))
+}
+function useSeenRevision(item, data) {
+  const key = `${item.ticker}:${item.exchange}`
+  const [before] = useState(() => (storage.get(SEEN_KEY, {}) || {})[key] || null)
+  useEffect(() => {
+    if (!data) return
+    const all = storage.get(SEEN_KEY, {}) || {}
+    if (all[key]?.revision >= data.revision) return
+    all[key] = { revision: data.revision, record_id: data.record_id, at: Date.now() }
+    storage.set(SEEN_KEY, all)
+  }, [key, data?.record_id]) // eslint-disable-line react-hooks/exhaustive-deps
+  return before
+}
+
+function WhatsNew({ item, data, history, sections }) {
+  const seen = useSeenRevision(item, data)
+  const [open, setOpen] = useState(true)
+  const reg = useApi({ action: 'blocks', ticker: item.ticker, exchange: item.exchange }, [item.ticker, item.exchange])
+  if (!open || !seen || !(seen.revision < data.revision)) return null
+  const items = history?.items || []
+  const old = items.find(i => i.revision === seen.revision && i.role !== 'withdrawn')
+  const cur = items.find(i => i.record_id === data.record_id) || data
+  const facts = []
+  if (old) {
+    if (old.decision_status !== cur.decision_status) facts.push(<>Quyết định: <Badge map={DECISION} value={old.decision_status} /> → <Badge map={DECISION} value={cur.decision_status} /></>)
+    if (old.risk_gate !== cur.risk_gate) facts.push(<>Cổng rủi ro: <Badge map={GATE} value={old.risk_gate} /> → <Badge map={GATE} value={cur.risk_gate} /></>)
+    const rows = [['Giá trị hợp lý', d => d.fair_value, price, 'rel'], ['MOS', d => d.mos, pct, 'pp'], ['Điểm', d => d.official_total ?? d.normalized_score, score, 'abs']]
+    rows.forEach(([label, value, fmt, delta]) => {
+      const a = value(old), b = value(cur)
+      if (isNum(a) && isNum(b) && a !== b) facts.push(<>{label}: {fmt(a)} → <b>{fmt(b)}</b> <span className="rl-muted">({deltaText({ value, delta }, old, cur)})</span></>)
+    })
+  }
+  const recs = reg.data?.records || []
+  const ra = recs.find(r => r.revision === seen.revision), rb = recs.find(r => r.record_id === data.record_id)
+  let changedSections = []
+  if (ra && rb) {
+    const va = Object.fromEntries(ra.blocks.map(b => [b.path, b.block_revision]))
+    const ids = new Set(rb.blocks.filter(b => va[b.path] !== b.block_revision).map(b => PATH_SECTION[b.path]).filter(Boolean))
+    changedSections = sections.filter(s => ids.has(s.id))
+  }
+  return <div className="rl-banner rl-whatsnew" role="note">
+    <button type="button" className="rl-banner-close" onClick={() => setOpen(false)} aria-label="Ẩn">×</button>
+    <b>Có gì mới từ lần bạn đọc trước.</b> Lần trước bạn đọc R{seen.revision}{seen.at ? ` (${dateText(new Date(seen.at).toISOString())})` : ''}; bản hiện hành là R{data.revision}.
+    {facts.length > 0 && <ul>{facts.map((f, i) => <li key={i}>{f}</li>)}</ul>}
+    {changedSections.length > 0 && <div className="rl-whatsnew-secs"><span>Mục có cập nhật:</span>{changedSections.map(s => <a key={s.id} href={`#${s.id}`}>{s.title}</a>)}</div>}
+    <a href={profileHref(item, 'phien-ban') + `&so-sanh=${seen.revision}-${data.revision}`}>So sánh R{seen.revision} với R{data.revision} →</a>
   </div>
 }
 
@@ -1394,15 +1523,16 @@ function ResearchPage({ ticker, exchange, tab }) {
         {report.loading && <><Skeleton rows={2} /><Skeleton rows={5} /></>}
         {report.error && <><a className="rl-back" href="/">← Thư viện</a>
           <Empty tone="error">Không mở được bản hiện hành của {ticker} ({report.error}). Báo cáo có thể chưa được xuất bản, đã thu hồi, hoặc chỉ dành cho thành viên.</Empty>
-          {hasHistory && <><ProfileTabs item={item} tab="lich-su" history={history.data} /><HistoryTab item={item} history={history} currentId={null} /></>}</>}
+          {hasHistory && <><ProfileTabs item={item} tab="phien-ban" history={history.data} /><VersionsTab item={item} history={history} currentId={null} /></>}</>}
         {data && <>
           <ReportHeader
-            kicker={`Full Research · R${data.revision} · Dữ liệu đến ${dateText(data.cutoff)}`}
+            kicker={`Báo cáo phân tích đầy đủ · Dữ liệu đến ${dateText(data.cutoff)}`}
             title={<>{data.company || ticker} <span className="rl-ticker-pill">{ticker} · {data.exchange}</span></>}
             sub={`${data.sector || ''}${data.reporting_period ? ` · Kỳ báo cáo: ${data.reporting_period}` : ''}`} />
           <ProfileTabs item={item} tab={tab} history={history.data} noteCount={notes.data?.notes?.length || 0} />
           {overview && <>
-            <RecordStatus data={data} role="current" />
+            <RecordStatus data={data} role="current" item={item} history={history.data} />
+            <WhatsNew item={item} data={data} history={history.data} sections={sections} />
             <KeyFacts data={data} p={p} />
             <NotesProvider item={item} notes={notes.data?.notes}><BlockProvider data={data} history={history.data}><div className="rl-layout">
               <SectionNav sections={sections} active={active} />
@@ -1410,8 +1540,7 @@ function ResearchPage({ ticker, exchange, tab }) {
             </div></BlockProvider></NotesProvider>
           </>}
           {tab === 'chuyen-de' && <TopicsTab item={item} notes={notes} current={data} />}
-          {tab === 'cap-nhat' && <UpdatesTab item={item} history={history} />}
-          {tab === 'lich-su' && <HistoryTab item={item} history={history} currentId={data.record_id} />}
+          {tab === 'phien-ban' && <VersionsTab item={item} history={history} currentId={data.record_id} />}
         </>}
       </main>
       {overview && <BackToTop />}
@@ -1570,9 +1699,8 @@ function HistoryState({ history }) {
   return null
 }
 
-// Dòng thời gian: các lần công bố, thay thế, thu hồi, kèm nhật ký thay đổi của từng bản.
-function UpdatesTab({ item, history }) {
-  const items = history.data?.items || []
+// Dòng thời gian: các lần công bố, thay thế, thu hồi, kèm nhật ký thay đổi của từng bản (mới nhất ở trên).
+function PublicationTimeline({ item, items }) {
   const byId = Object.fromEntries(items.map(i => [i.record_id, i]))
   const events = []
   items.forEach(i => {
@@ -1584,23 +1712,21 @@ function UpdatesTab({ item, history }) {
     if (i.superseded_at) events.push({ at: i.superseded_at, kind: 'superseded', i, by: byId[i.superseded_by] })
   })
   events.sort((a, b) => String(b.at).localeCompare(String(a.at)))
-  return <section className="rl-ptab-body">
-    <HistoryState history={history} />
-    {events.length > 0 && <ol className="rl-publine">
-      {events.map((e, n) => <li key={n} className={`rl-pl-${e.kind}`}>
-        <time>{dateText(e.at)}</time>
-        {e.kind === 'published' && <div>
-          <b>Công bố R{e.i.revision}</b>{e.i.role === 'current' && <> <Badge map={ROLE} value="current" code={false} /></>}
-          <p className="rl-muted rl-small">Thời điểm đánh giá {dateText(e.i.as_of)} · Dữ liệu đến {dateText(e.i.cutoff)} · <Badge map={DECISION} value={e.i.decision_status} code={false} /> <Badge map={GATE} value={e.i.risk_gate} code={false} /> · Giá trị hợp lý {price(e.i.fair_value)}</p>
-          {Array.isArray(e.i.change_log) && e.i.change_log.length > 0 && <details className="rl-changelog"><summary>Nhật ký thay đổi ({e.i.change_log.length})</summary><BulletList items={e.i.change_log} /></details>}
-          <a href={recordHref(item, e.i.record_id)}>Đọc R{e.i.revision} →</a>
-        </div>}
-        {e.kind === 'superseded' && <div><b>R{e.i.revision} chuyển thành bản lịch sử</b>
-          <p className="rl-muted rl-small">{e.by ? `Được thay bằng R${e.by.revision}.` : 'Được thay bằng bản mới hơn.'}</p></div>}
-        {e.kind === 'withdrawn' && <div><b>R{e.i.revision} đã thu hồi</b><p className="rl-muted rl-small">Nội dung bản này không còn được hiển thị.</p></div>}
-      </li>)}
-    </ol>}
-  </section>
+  if (!events.length) return null
+  return <ol className="rl-publine">
+    {events.map((e, n) => <li key={n} className={`rl-pl-${e.kind}`}>
+      <time>{dateText(e.at)}</time>
+      {e.kind === 'published' && <div>
+        <b>Công bố R{e.i.revision}</b>{e.i.role === 'current' && <> <Badge map={ROLE} value="current" /></>}
+        <p className="rl-muted rl-small">Thời điểm đánh giá {dateText(e.i.as_of)} · Dữ liệu đến {dateText(e.i.cutoff)} · <Badge map={DECISION} value={e.i.decision_status} /> <Badge map={GATE} value={e.i.risk_gate} /> · Giá trị hợp lý {price(e.i.fair_value)}</p>
+        {Array.isArray(e.i.change_log) && e.i.change_log.length > 0 && <details className="rl-changelog"><summary>Nhật ký thay đổi ({e.i.change_log.length})</summary><BulletList items={e.i.change_log} /></details>}
+        <a href={e.i.role === 'current' ? profileHref(item) : recordHref(item, e.i.record_id)}>Đọc R{e.i.revision} →</a>
+      </div>}
+      {e.kind === 'superseded' && <div><b>R{e.i.revision} chuyển thành bản lịch sử</b>
+        <p className="rl-muted rl-small">{e.by ? `Được thay bằng R${e.by.revision}.` : 'Được thay bằng bản mới hơn.'}</p></div>}
+      {e.kind === 'withdrawn' && <div><b>R{e.i.revision} đã thu hồi</b><p className="rl-muted rl-small">Nội dung bản này không còn hiển thị.</p></div>}
+    </li>)}
+  </ol>
 }
 
 const DIFF_ROWS = [
@@ -1611,7 +1737,7 @@ const DIFF_ROWS = [
   { label: 'Biên an toàn (MOS)', value: d => d.mos, fmt: pct, delta: 'pp' },
   { label: 'Upside', value: d => d.upside, fmt: pct, delta: 'pp' },
   { label: 'Điểm scorecard', value: d => d.official_total ?? d.normalized_score, fmt: score, delta: 'abs' },
-  { label: 'Coverage', value: d => d.score_coverage, fmt: v => `${num(v, 0)}%`, delta: 'abs' },
+  { label: 'Độ phủ dữ liệu', value: d => d.score_coverage, fmt: v => `${num(v, 0)}%`, delta: 'abs' },
   { label: 'Thời điểm đánh giá', cell: d => dateText(d.as_of), key: d => d.as_of },
   { label: 'Dữ liệu đến (cutoff)', cell: d => dateText(d.cutoff), key: d => d.cutoff },
   { label: 'Kỳ báo cáo', cell: d => d.reporting_period || '—', key: d => d.reporting_period },
@@ -1645,41 +1771,59 @@ function RevisionDiff({ a, b }) {
       })}</tbody>
     </table></div>
     <ul className="rl-diff-notes">{warn.map((w, i) => <li key={i}>{w}</li>)}</ul>
-    <p className="rl-muted rl-small">Coverage thấp hơn không có nghĩa doanh nghiệp xấu đi: có thể do tiêu chuẩn bằng chứng chặt hơn. Giá trị lịch sử lấy nguyên từ từng bản, không tính lại theo giá hiện tại.</p>
+    <p className="rl-muted rl-small">Độ phủ dữ liệu thấp hơn không có nghĩa doanh nghiệp xấu đi: có thể do tiêu chuẩn bằng chứng chặt hơn. Giá trị lịch sử lấy nguyên từ từng bản, không tính lại theo giá hiện tại.</p>
   </div>
 }
 
-function HistoryTab({ item, history, currentId }) {
+// Tab Phiên bản (gộp Cập nhật + Lịch sử): bảng các bản, so sánh hai bản bất kỳ, khối nội dung đã đổi, dòng thời gian.
+// Hai bản được so sánh nằm trong địa chỉ (&so-sanh=1-2) để gửi cho người khác đúng phần so sánh.
+function VersionsTab({ item, history, currentId }) {
   const items = history.data?.items || []
   const readable = items.filter(i => i.role !== 'withdrawn')
-  const [pick, setPick] = useState(null)
+  const fromUrl = (new URLSearchParams(window.location.search).get('so-sanh') || '').split('-').map(Number)
+  const urlPick = readable.filter(i => fromUrl.includes(i.revision)).map(i => i.record_id)
+  const [pick, setPick] = useState(urlPick.length === 2 ? urlPick : null)
   const sel = pick || readable.slice(-2).map(i => i.record_id)
   const pair = readable.filter(i => sel.includes(i.record_id))
   const toggle = id => {
     const cur = sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id].slice(-2)
     setPick(cur)
+    const revs = readable.filter(i => cur.includes(i.record_id)).map(i => i.revision)
+    if (revs.length === 2) window.history.replaceState(null, '', profileHref(item, 'phien-ban') + `&so-sanh=${revs.join('-')}`)
   }
   return <section className="rl-ptab-body">
     <HistoryState history={history} />
     {items.length > 0 && <div className="rl-table-wrap"><table className="rl-table rl-history">
-      <thead><tr><th scope="col">Bản</th><th scope="col">Vai trò</th><th scope="col">Thời điểm đánh giá</th><th scope="col">Công bố</th><th scope="col">Quyết định</th><th scope="col" className="num">Giá trị hợp lý</th><th scope="col" className="num">Coverage</th><th scope="col">So sánh</th></tr></thead>
+      <thead><tr><th scope="col">Bản</th><th scope="col">Vai trò</th><th scope="col">Thời điểm đánh giá</th><th scope="col">Công bố</th><th scope="col">Quyết định</th><th scope="col" className="num">Giá trị hợp lý</th><th scope="col" className="num">Độ phủ</th><th scope="col">So sánh</th></tr></thead>
       <tbody>{[...items].reverse().map(i => i.role === 'withdrawn'
-        ? <tr key={i.record_id} className="rl-withdrawn"><th scope="row">R{i.revision}</th><td><Badge map={ROLE} value="withdrawn" code={false} /></td><td colSpan={6} className="rl-muted">Đã thu hồi ngày {dateText(i.withdrawn_at)}. Nội dung không còn hiển thị.</td></tr>
+        ? <tr key={i.record_id} className="rl-withdrawn"><th scope="row">R{i.revision}</th><td><Badge map={ROLE} value="withdrawn" /></td><td colSpan={6} className="rl-muted">Đã thu hồi ngày {dateText(i.withdrawn_at)}. Nội dung không còn hiển thị.</td></tr>
         : <tr key={i.record_id}>
           <th scope="row"><a href={i.record_id === currentId ? profileHref(item) : recordHref(item, i.record_id)}>R{i.revision}</a><small>Dữ liệu đến {dateText(i.cutoff)}</small></th>
-          <td><Badge map={ROLE} value={i.role} code={false} />{i.superseded_at && <small className="rl-muted rl-block">Thay thế {dateText(i.superseded_at)}</small>}</td>
+          <td><Badge map={ROLE} value={i.role} />{i.superseded_at && <small className="rl-muted rl-block">Thay thế {dateText(i.superseded_at)}</small>}</td>
           <td>{dateText(i.as_of)}</td>
           <td>{dateText(i.first_published_at)}</td>
-          <td><Badge map={DECISION} value={i.decision_status} code={false} /> <Badge map={GATE} value={i.risk_gate} code={false} /></td>
+          <td><Badge map={DECISION} value={i.decision_status} /> <Badge map={GATE} value={i.risk_gate} /></td>
           <td className="num">{price(i.fair_value)}</td>
           <td className="num">{num(i.score_coverage, 0)}%</td>
           <td><label className="rl-check"><input type="checkbox" checked={sel.includes(i.record_id)} onChange={() => toggle(i.record_id)} disabled={readable.length < 2} /> Chọn</label></td>
         </tr>)}</tbody>
     </table></div>}
+    {readable.length > 2 && <p className="rl-muted rl-small">Đánh dấu hai bản bất kỳ ở cột So sánh để xem khác biệt.</p>}
     {pair.length === 2 && <><h2 className="rl-ptab-h">So sánh R{pair[0].revision} và R{pair[1].revision}</h2><RevisionDiff a={pair[0]} b={pair[1]} /></>}
     <BlockMatrix history={history.data} item={item} />
+    {items.length > 0 && <><h2 className="rl-ptab-h">Dòng thời gian xuất bản</h2><PublicationTimeline item={item} items={items} /></>}
     {readable.length === 1 && <p className="rl-muted rl-small">Mới có một bản được xuất bản. Khi có bản mới, bản cũ vẫn đọc được tại đây.</p>}
   </section>
+}
+
+// Trong biểu ngữ bản cũ: bản hiện hành là R mấy, giá trị hợp lý đã đổi bao nhiêu, và lối tắt sang so sánh.
+function CurrentHint({ item, data, history }) {
+  const cur = history?.items?.find(i => i.record_id === data.current_record_id)
+  if (!cur) return <> <a href={profileHref(item)}>Mở bản hiện hành →</a></>
+  const fv = isNum(data.fair_value) && isNum(cur.fair_value) && data.fair_value !== cur.fair_value
+    ? ` Giá trị hợp lý ở R${cur.revision}: ${price(cur.fair_value)} (${deltaText({ value: d => d.fair_value, delta: 'rel' }, data, cur)}).` : ''
+  return <>{` Bản hiện hành là R${cur.revision}.${fv}`} <a href={profileHref(item)}>Đọc R{cur.revision} →</a>{' · '}
+    <a href={profileHref(item, 'phien-ban') + `&so-sanh=${data.revision}-${cur.revision}`}>Xem khác biệt</a></>
 }
 
 // Đường dẫn cố định một bản theo record_id. Bản lịch sử luôn có cảnh báo, không tự chuyển sang bản hiện hành.
@@ -1710,21 +1854,21 @@ function RecordPage({ ticker, exchange, id }) {
       </TopBar>
       <main className="rl-main">
         {report.loading && <><Skeleton rows={2} /><Skeleton rows={5} /></>}
-        {report.error && <><a className="rl-back" href={profileHref(item, 'lich-su')}>← Hồ sơ {ticker}</a>
+        {report.error && <><a className="rl-back" href={profileHref(item, 'phien-ban')}>← Hồ sơ {ticker}</a>
           <Empty tone="error">{report.error === 'record_withdrawn' ? 'Bản này đã được thu hồi, nội dung không còn hiển thị.' : `Không mở được bản này (${report.error}). Bản có thể chưa được xuất bản hoặc chỉ dành cho thành viên.`}</Empty></>}
         {wrongTicker && <Empty tone="error">Mã bản ghi không khớp đường dẫn. <a href={recordHref(data, id)}>Mở đúng địa chỉ</a></Empty>}
         {data && !wrongTicker && <>
           {historical
             ? <div className="rl-banner warn" role="note">
                 <b>Không phải đánh giá hiện hành.</b> Đây là bản R{data.revision} (thời điểm đánh giá {dateText(data.as_of)}){data.superseded_at ? `, đã được thay thế ngày ${dateText(data.superseded_at)}` : ''}. Định giá, điểm và quyết định trong bản này chỉ có giá trị tham khảo lịch sử.
-                {data.current_record_id ? <> <a href={profileHref(item)}>Mở bản hiện hành →</a></> : <> Hiện chưa có bản hiện hành bạn được phép xem.</>}
+                {data.current_record_id ? <CurrentHint item={item} data={data} history={history.data} /> : <> Hiện chưa có bản hiện hành bạn được phép xem.</>}
               </div>
             : <div className="rl-banner" role="note">Đây là bản hiện hành của {data.ticker}. <a href={profileHref(item)}>Mở hồ sơ {data.ticker} →</a></div>}
-          <ReportHeader back={<a className="rl-back" href={profileHref(item, 'lich-su')}>← Lịch sử {data.ticker}</a>}
-            kicker={`Full Research · R${data.revision} · Dữ liệu đến ${dateText(data.cutoff)}`}
+          <ReportHeader back={<a className="rl-back" href={profileHref(item, 'phien-ban')}>← Các phiên bản {data.ticker}</a>}
+            kicker={`Báo cáo phân tích đầy đủ · Dữ liệu đến ${dateText(data.cutoff)}`}
             title={<>{data.company || ticker} <span className="rl-ticker-pill">{data.ticker} · {data.exchange}</span></>}
             sub={`${data.sector || ''}${data.reporting_period ? ` · Kỳ báo cáo: ${data.reporting_period}` : ''}`} />
-          <RecordStatus data={data} role={data.role} />
+          <RecordStatus data={data} role={data.role} item={item} history={history.data} />
           <KeyFacts data={data} p={p} />
           <BlockProvider data={data} history={history.data}><div className="rl-layout">
             <SectionNav sections={sections} active={active} />
@@ -1844,7 +1988,7 @@ const COMPARE_ROWS = [
   { label: 'Cổng rủi ro', cell: d => <Badge map={GATE} value={d.risk_gate} code={false} /> },
   { label: 'Điểm scorecard', value: d => d.official_total ?? d.normalized_score, best: 'max',
     cell: d => <>{score(d.official_total ?? d.normalized_score)}<small className="rl-muted">/100{d.official_total == null && d.normalized_score != null ? ' · tạm' : ''}</small></> },
-  { label: 'Coverage · tin cậy', cell: d => `${num(d.payload?.scorecard?.coverage ?? d.score_coverage, 0)}% · ${CONFIDENCE[d.payload?.scorecard?.confidence || d.score_confidence]?.vi || '—'}` },
+  { label: 'Độ phủ · tin cậy', cell: d => `${num(d.payload?.scorecard?.coverage ?? d.score_coverage, 0)}% · ${CONFIDENCE[d.payload?.scorecard?.confidence || d.score_confidence]?.vi || '—'}` },
   { group: 'Định giá' },
   { label: 'Giá thị trường', cell: d => <>{price(d.payload?.valuation?.price ?? d.price)}<small className="rl-muted"> · {dateText(d.payload?.valuation?.price_date ?? d.price_date)}</small></> },
   { label: 'Giá trị hợp lý', cell: d => price(d.payload?.valuation?.fair_value ?? d.fair_value) },
@@ -2042,10 +2186,12 @@ function LibraryRoutes() {
   const ticker = path[0] === 'research' && path[1] ? decodeURIComponent(path[1]).toUpperCase() : ''
   const recordId = ticker && path[2] === 'r' && /^[0-9a-f-]{36}$/i.test(path[3] || '') ? path[3].toLowerCase() : ''
   const noteId = ticker && path[2] === 'n' && /^[0-9a-f-]{36}$/i.test(path[3] || '') ? path[3].toLowerCase() : ''
-  const tabParam = url.searchParams.get('tab')
+  const tabParam = LEGACY_TABS[url.searchParams.get('tab')] || url.searchParams.get('tab')
   const tab = PROFILE_TABS.some(t => t.id === tabParam) ? tabParam : 'tong-quan'
   // Chuẩn hóa địa chỉ bài để tab nhận ra cùng một bài (ví dụ /research/fpt → /research/FPT?exchange=HOSE).
-  const canonical = recordId ? recordHref({ ticker, exchange }, recordId) : noteId ? noteHref({ ticker, exchange }, noteId) : ticker ? profileHref({ ticker, exchange }, tab) : ''
+  const pair = tab === 'phien-ban' && /^\d+-\d+$/.test(url.searchParams.get('so-sanh') || '') ? url.searchParams.get('so-sanh') : ''
+  const canonical = recordId ? recordHref({ ticker, exchange }, recordId) : noteId ? noteHref({ ticker, exchange }, noteId)
+    : ticker ? profileHref({ ticker, exchange }, tab) + (pair ? `&so-sanh=${pair}` : '') : ''
   useEffect(() => { if (canonical && canonical !== loc) navigate(canonical + window.location.hash, { replace: true }) }, [canonical, loc])
   useEffect(() => { if (path[0] !== 'compare' && path.length) patchTabs({ last: loc }) }, [loc]) // eslint-disable-line react-hooks/exhaustive-deps
   if (noteId) return <NotePage key={canonical} ticker={ticker} exchange={exchange} id={noteId} />
