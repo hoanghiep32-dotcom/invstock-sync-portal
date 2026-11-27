@@ -1,4 +1,18 @@
 // Port of InvStock_Operating_Framework_v2/validate.py (v2.0.0). Keep semantics in sync with the Python file.
+
+// Ô này chỉ nhận Full JSON schema 02 (schema_name). Nói rõ file thực ra là gì để người dùng đưa đúng chỗ.
+export function unknownSchemaMessage(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return "Unknown schema: file không phải object JSON";
+  const where = "Không phải Full JSON (schema 02). Nhập ở mục 3 'Khối, chuyên đề & tác vụ' của trang quản trị";
+  if (d.contract_name === "invstock.research_note") return `Unknown schema: đây là Research Note. ${where} (ô Chuyên đề).`;
+  if (d.contract_name === "invstock.research_operation") return `Unknown schema: đây là Research Operation. ${where} (ô Tác vụ nghiên cứu, sau khi đã nhập chuyên đề).`;
+  if (d.contract_name === "invstock.snapshot_manifest") return "Unknown schema: đây là Snapshot Manifest; manifest do máy chủ tự dựng, không cần tải lên.";
+  if (d.operation_type && Array.isArray(d.notes) && Array.isArray(d.changes))
+    return "Unknown schema: đây là gói review hợp nhất (operation + notes, không có contract_name). " +
+      "Chạy contracts/tools/convert_review_bundle.mjs để tách thành note + operation contract 0.1.0, rồi nhập ở mục 3.";
+  if (d.schema_name) return `Unknown schema: schema_name '${d.schema_name}' không được hỗ trợ (chỉ invstock_research_v2, invstock_screening_v2).`;
+  return "Unknown schema: thiếu schema_name (invstock_research_v2 hoặc invstock_screening_v2).";
+}
 export function makeValidator(Ajv2020, addFormats, schemas, scorecardFramework) {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   addFormats(ajv);
@@ -12,7 +26,7 @@ export function makeValidator(Ajv2020, addFormats, schemas, scorecardFramework) 
 
   return function validate(d) {
     const v = d && compiled[d.schema_name];
-    if (!v) return ["Unknown schema"];
+    if (!v) return [unknownSchemaMessage(d)];
     if (!v(d)) return v.errors.map((e) => `${e.instancePath || "/"}: ${e.message}`);
     const errors = [];
     const check = (ok, msg) => { if (!ok) errors.push(msg); };
