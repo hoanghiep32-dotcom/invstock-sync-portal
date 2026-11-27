@@ -77,6 +77,17 @@ Kiểm thử: `node contracts/tests/test_integration.mjs <R1.json> <R2.json>` (1
 
 Mã lỗi thêm ở GĐ 6: `NO_CHANGE` (bản ứng viên chỉ đổi `/metadata`, không tạo bản mới).
 
+## Gói review hợp nhất (không có contract_name)
+
+Một số phiên nghiên cứu xuất ra một file gộp operation + notes + quality review (có `operation_type`, `notes`, `changes` nhưng không có `contract_name`). File này không phải Full JSON nên mục 1 báo `Unknown schema`, và cũng chưa đúng contract nên mục 3 không nhận. Tách bằng:
+
+```bash
+node contracts/tools/convert_review_bundle.mjs <bundle.json> <base_full.json> <out_dir> \
+  --profile-id <securities.id> --manifest-id <manifest_id base> --manifest-sha256 <manifest_sha256 base>
+```
+
+Tool kiểm tra hash base, chỉ nhận change APPEND, tính `expected_input_hashes`/`expected_old_hash` từ bytes base, chạy schema + kiểm tra logic, và giữ nguyên văn phần không có chỗ trong contract (nghiên cứu gốc, quality review, dedup) trong body Markdown của note. Gap dạng chuỗi được ghi `MATERIAL` cho tới khi người duyệt đánh giá. Nhập note trước, operation sau.
+
 ## GĐ 6 – Kiểm thử B01–B22 và đối soát
 
 - Tầng engine + validator: `node contracts/tests/test_b_series.mjs <R1.json> <R2.json> [--json out.json]`
